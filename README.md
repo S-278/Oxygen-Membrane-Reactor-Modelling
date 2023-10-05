@@ -115,5 +115,5 @@ References
 
 
 [4] G.P. Smith, D.M. Golden, M. Frenklach, N.W. Moriarty, B. Eiteneer, M. Goldenberg, C.T. Bowman, R.K. Hanson, S. Song, 
-    W.C.J. Gardiner, V.V. Lissianski, Z. Qin, Gri-Mech 3.0
+    W.C.J. Gardiner, V.V. Lissianski, Z. Qin, Gri-Mech 3.0~~
 --------------------------------------------------------------------------------------------------------------------------------------
