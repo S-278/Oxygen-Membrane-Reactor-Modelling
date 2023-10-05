@@ -22,12 +22,12 @@ Notable species herein include: [O2, H2O, H2, CH4, CO, CO2, N2, AR]
 Usage
 --------------------------------------------------------------------------------------------------------------------------------------
 To import the script into your Python code, download OMR_model.py and import the function Simulate_OMR at the beginning of the code as:
-#import oxygen membrane reactor model
-from OMR_model import Simulate_OMR
+`#import oxygen membrane reactor model
+from OMR_model import Simulate_OMR`
 
 After defining the input parameters for the model [T,N_f0,x_f0,P_f,N_s0,x_s0,P_s,A_mem,sigma,L,Lc], a simulation can then be performed by calling:
-#simulate oxygen membrane reactor
-N_f, x_f, p_o2_f, N_s, x_s, p_o2_s, N_o2, dH, x_comp, conv = Simulate_OMR(T,N_f0,x_f0,P_f,N_s0,x_s0,P_s,A_mem,sigma,L,Lc)
+`#simulate oxygen membrane reactor
+N_f, x_f, p_o2_f, N_s, x_s, p_o2_s, N_o2, dH, x_comp, conv = Simulate_OMR(T,N_f0,x_f0,P_f,N_s0,x_s0,P_s,A_mem,sigma,L,Lc)`
 
 Examples for using the function with scalar input parameters, as well as array shaped input parameters are given in the Examples folder.
 --------------------------------------------------------------------------------------------------------------------------------------
