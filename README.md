@@ -14,7 +14,6 @@ On both sides of the membrane, chemical equilibrium is assumed. The oxygen flux 
 The entire problem is then solved as a nested problem: The inner problem is the equilibrium calculation inluding an assumed oxygen flux using Cantera [2]. 
 The outer problem is a root finding problem to find the oxygen flux satisfying the Wagner equation in the equilibrium state which is done using Scipy [3].
 A detailed explanation of the assumptions, limitations and equations including experimental validation can be found in our publication [1].
-
 The implementation published here uses thermodynamic data from the Gri 3.0 mechanism [4] and subsequently considers 53 species. 
 Notable species herein include: [O2, H2O, H2, CH4, CO, CO2, N2, AR]
 --------------------------------------------------------------------------------------------------------------------------------------
@@ -112,7 +111,6 @@ References
     Fabian Pedregosa, Paul van Mulbregt, and SciPy 1.0 Contributors. 
     (2020) SciPy 1.0: Fundamental Algorithms for Scientific Computing in Python. Nature Methods, 17(3), 261-272.
     DOI: https://doi.org/10.1038/s41592-019-0686-2
-
 
 [4] G.P. Smith, D.M. Golden, M. Frenklach, N.W. Moriarty, B. Eiteneer, M. Goldenberg, C.T. Bowman, R.K. Hanson, S. Song, 
     W.C.J. Gardiner, V.V. Lissianski, Z. Qin, Gri-Mech 3.0~~
