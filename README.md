@@ -1,9 +1,9 @@
 Prequisites
 --------------------------------------------------------------------------------------------------------------------------------------
--Numpy
--Scipy
--Cantera (tested with version 2.6.0)
--Matplotlib (used for plotting in the examples)
+- Numpy
+- Scipy
+- Cantera (tested with version 2.6.0)
+- Matplotlib (used for plotting in the examples)
 --------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -114,5 +114,6 @@ References
     DOI: https://doi.org/10.1038/s41592-019-0686-2
 
 
-[4] G.P. Smith, D.M. Golden, M. Frenklach, N.W. Moriarty, B. Eiteneer, M. Goldenberg, C.T. Bowman, R.K. Hanson, S. Song, W.C.J. Gardiner, V.V. Lissianski, Z. Qin, Gri-Mech 3.0
+[4] G.P. Smith, D.M. Golden, M. Frenklach, N.W. Moriarty, B. Eiteneer, M. Goldenberg, C.T. Bowman, R.K. Hanson, S. Song, 
+    W.C.J. Gardiner, V.V. Lissianski, Z. Qin, Gri-Mech 3.0
 --------------------------------------------------------------------------------------------------------------------------------------
