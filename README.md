@@ -89,9 +89,6 @@ Inputs and outputs of the model
         Check whether convergence was achieved; Equal to 1 if converged.
 
 
-License
---
-
 
 References
 --
