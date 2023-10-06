@@ -125,9 +125,7 @@ def InitializeMix(T,N_f0,x_f0,P_f,N_s0,x_s0,P_s):
     #create sweep side mixture
     sol2.TPX = T+273.15, P_s, x_s0
     mix_s = ct.Mixture([(sol2,N_s0/60)])
-    #calculate inlet enthalpy flow by assuming equilibrium at the inlet
-    mix_f.equilibrate('TP')
-    mix_s.equilibrate('TP')
+    #calculate inlet enthalpy flow
     H_in=(mix_f.phase(0).enthalpy_mole*mix_f.phase_moles()[0]+mix_s.phase(0).enthalpy_mole*mix_s.phase_moles()[0])/1000
     return(mix_f,mix_s, H_in)
     
