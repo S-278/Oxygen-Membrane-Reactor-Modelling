@@ -65,7 +65,7 @@ Inputs and outputs of the model
 
     Returns (Outputs)
     -------
-    N_f : Array of floats with length n
+    N_f : Float (array with length n)
         Feed gas molar flow rate in mol/min.
     x_f : List of array of floats with size n*53
         Mole fraction array, consisting of the mole fractions of the feed gas, related to the composition array.
@@ -75,7 +75,7 @@ Inputs and outputs of the model
         Sweep gas molar flow rate in mol/min.
     x_s : List of array of floats with size n*53
         Mole fraction array, consisting of the mole fractions of the sweep gas, related to the composition array.
-    p_o2_s : oat (array with length n)
+    p_o2_s : Float (array with length n)
         Sweep gas oxygen partial pressure in Pa.
     p_o2_f : Float (array with length n)
         Feed gas oxygen partial pressure in Pa.
