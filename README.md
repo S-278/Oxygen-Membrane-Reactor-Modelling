@@ -10,7 +10,7 @@ Description
 --
 The Python script OMR_model.py allows to simulate oxygen membrane reactors with continuos gas flow rates as described in our publication [1].
 
-On both sides of the membrane, chemical equilibrium is assumed. The oxygen flux through the membrane is modelled by the Wagner equation and included into the chemical equilibrium calculation.
+Chemical equilibrium is assumed on both sides of the membrane. The oxygen flux through the membrane is modelled using the Wagner equation and included into the chemical equilibrium calculation.
 The entire problem is then solved as a nested problem: The inner problem is the equilibrium calculation inluding an assumed oxygen flux using Cantera [2]. 
 The outer problem is a root finding problem to find the oxygen flux satisfying the Wagner equation in the equilibrium state which is solved using Scipy [3].
 A detailed explanation of the assumptions, limitations and equations including experimental validation can be found in our publication [1].
