@@ -99,7 +99,7 @@ References
 
 [2] David G. Goodwin, Harry K. Moffat, Ingmar Schoegl, Raymond L. Speth, and Bryan W. Weber. Cantera: An object-oriented software toolkit for chemical kinetics, 
     thermodynamics, and transport processes. 
-    https://www.cantera.org, 2023. Version 3.0.0. https://doi:10.5281/zenodo.8137090
+    https://www.cantera.org, 2023. Version 3.0.0. DOI: 10.5281/zenodo.8137090
 
 [3] Pauli Virtanen, Ralf Gommers, Travis E. Oliphant, Matt Haberland, Tyler Reddy, David Cournapeau, Evgeni Burovski, Pearu Peterson,
     Warren Weckesser, Jonathan Bright, Stéfan J. van der Walt, Matthew Brett, Joshua Wilson, K. Jarrod Millman, Nikolay Mayorov, 
