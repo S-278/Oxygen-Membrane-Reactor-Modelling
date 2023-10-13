@@ -13,24 +13,104 @@ sol2 = ct.Solution('gri30.yaml')
 
 class Experiment:
     input_origin = {
-        "T" : 950, 
-        "N_f0" : 3.985e-4, "x_f0" : "H2O:1", "P_f" : 101325, 
-        "N_s0" : 2.989e-4, "x_s0" : "CH4:1", "P_s" : 101325, 
-        "A_mem" : 2.41, "sigma" : 1.3, "L" : 250, "Lc" : 0}
+        'T' : 950, 
+        'N_f0' : 3.985e-4, 'x_f0' : 'H2O:1', 'P_f' : 101325, 
+        'N_s0' : 2.989e-4, 'x_s0' : 'CH4:1', 'P_s' : 101325, 
+        'A_mem' : 2.41, 'sigma' : 1.3, 'L' : 250, 'Lc' : 0}
     
     def __init__(self, **kwargs):
         self.__model_input = self.input_origin
         self.__model_input.update(kwargs)
-        self.__model_output = {}
-        self.__output_valid = False
         
     def __set_input(self, key, val):
-        self.__output_valid = False
         self.__model_input[key] = val
         
     T = property(
-        fget = lambda self: self.__model_input["T"],
+        fget = lambda self: self.__model_input['T'],
         fset = lambda self, newVal: self.__set_input('T', newVal))
+    N_f0 = property(
+        fget = lambda self: self.__model_input['N_f0'],
+        fset = lambda self, newVal: self.__set_input('N_f0', newVal))
+    x_f0 = property(
+        fget = lambda self: self.__model_input['x_f0'],
+        fset = lambda self, newVal: self.__set_input('x_f0', newVal))
+    P_f = property(
+        fget = lambda self: self.__model_input['P_f'],
+        fset = lambda self, newVal: self.__set_input('P_f', newVal))
+    N_s0 = property(
+        fget = lambda self: self.__model_input['N_s0'],
+        fset = lambda self, newVal: self.__set_input('N_s0', newVal))
+    x_s0 = property(
+        fget = lambda self: self.__model_input['x_s0'],
+        fset = lambda self, newVal: self.__set_input('x_s0', newVal))
+    P_s = property(
+        fget = lambda self: self.__model_input['P_s'],
+        fset = lambda self, newVal: self.__set_input('P_s', newVal))
+    A_mem = property(
+        fget = lambda self: self.__model_input['A_mem'],
+        fset = lambda self, newVal: self.__set_input('A_mem', newVal))
+    sigma = property(
+        fget = lambda self: self.__model_input['sigma'],
+        fset = lambda self, newVal: self.__set_input('sigma', newVal))
+    L = property(
+        fget = lambda self: self.__model_input['L'],
+        fset = lambda self, newVal: self.__set_input('L', newVal))
+    Lc = property(
+        fget = lambda self: self.__model_input['Lc'],
+        fset = lambda self, newVal: self.__set_input('Lc', newVal))
+    
+    def print_input(self):
+        col_template = '{: <15}{: >20}'; col_sep = ', '
+        print(col_template.format('Temperature:', str(self.T) + ' °C'))
+        print(col_template.format('Feed:', f'{self.N_f0:.2e}' + ' mol/min'), 
+              col_sep, '{: >15}'.format(self.x_f0), sep='')
+        print(col_template.format('Sweep:', f'{self.N_s0:.2e}' + ' mol/min'), 
+              col_sep, '{: >15}'.format(self.x_s0), sep='')
+        print(col_template.format('Feed pressure:', str(self.P_f) + ' Pa'))
+        print(col_template.format('Sweep pressure:', str(self.P_s) + ' Pa'))
+        print('Membrane:')
+        col_template = '{: <15}{: >10}'
+        print(col_template.format('Area:', str(self.A_mem) + ' cm²'), 
+              col_sep, col_template.format('sigma: ', str(self.sigma) + ' S/m'), sep='')
+        print(col_template.format('Thickness: ', str(self.L) + ' um'),
+              col_sep, col_template.format('char. length:', str(self.Lc) + ' um'), sep='')
+            
+    def __get_output(self, key):
+        try:
+            return self.__model_output[key]
+        except KeyError:
+            raise RuntimeError('This Experiment has not been run yet')
+            
+    N_f = property(
+        fget = lambda self: self.__get_output('N_f'),
+        fset = None)
+    x_f = property(
+        fget = lambda self: self.__get_output('x_f'),
+        fset = None)
+    p_o2_f = property(
+        fget = lambda self: self.__get_output('p_o2_f'),
+        fset = None)
+    N_s = property(
+        fget = lambda self: self.__get_output('N_s'),
+        fset = None)
+    x_s = property(
+        fget = lambda self: self.__get_output('x_s'),
+        fset = None)
+    p_o2_s = property(
+        fget = lambda self: self.__get_output('p_o2_s'),
+        fset = None)
+    N_o2 = property(
+        fget = lambda self: self.__get_output('N_o2'),
+        fset = None)
+    dH = property(
+        fget = lambda self: self.__get_output('dH'),
+        fset = None)
+    x_comp = property(
+        fget = lambda self: self.__get_output('x_comp'),
+        fset = None)
+    conv = property(
+        fget = lambda self: self.__get_output('conv'),
+        fset = None)
 
 def Simulate_OMR(T, N_f0, x_f0, P_f, N_s0, x_s0, P_s, A_mem, sigma, L, Lc):
     """
