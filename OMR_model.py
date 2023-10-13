@@ -11,6 +11,48 @@ from scipy.optimize import fsolve
 sol1 = ct.Solution('gri30.yaml')
 sol2 = ct.Solution('gri30.yaml')
 
+class ModelInputFrame:
+    def __init__(self, T=0, 
+                 N_f0 = 0, x_f0 = "", P_f = 0, 
+                 N_s0 = 0, x_s0 = "", P_s = 0, 
+                 A_mem = 0, sigma = 0, L = 0,Lc = 0):
+        self.T = T
+        self.N_f0 = N_f0
+        self.x_f0 = x_f0
+        self.P_f = P_f
+        self.N_s0 = N_s0
+        self.x_s0 = x_s0
+        self.P_s = P_s
+        self.A_mem = A_mem
+        self.sigma = sigma
+        self.L = L
+        self.Lc = Lc
+        
+class ModelOutputFrame:
+    def __init__(self):
+        self.N_f = 0
+        self.x_f = np.zeros(53)
+        self.p_o2_f = 0
+        self.N_s = 0
+        self.x_s = np.zeros(53)
+        self.p_o2_s = 0
+        self.N_o2 = 0
+        self.dH = 0
+        self.x_comp = []
+        self.conv = 0
+
+class Experiment:
+    origin : ModelInputFrame = ModelInputFrame(
+        T=950, 
+        N_f0 = 3.985e-4, x_f0 = "H2O:1", P_f = 101325, 
+        N_s0 = 2.989e-4, x_s0 = "CH4:1", P_s = 101325, 
+        A_mem = 2.41, sigma = 1.3, L = 250, Lc = 0)
+    
+    def __init__(self, model_input : ModelInputFrame = ModelInputFrame()):
+        self.model_input : ModelInputFrame = model_input
+        self.model_output : ModelOutputFrame = ModelOutputFrame()
+        self.__output_valid = False
+
 def Simulate_OMR(T, N_f0, x_f0, P_f, N_s0, x_s0, P_s, A_mem, sigma, L, Lc):
     """
     Parameters
