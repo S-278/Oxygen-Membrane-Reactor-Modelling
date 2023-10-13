@@ -19,12 +19,18 @@ class Experiment:
         "A_mem" : 2.41, "sigma" : 1.3, "L" : 250, "Lc" : 0}
     
     def __init__(self, **kwargs):
-        if len(kwargs) == 0:
-            self.__model_input = input_origin
-        else:
-            self.__model_input = kwargs
+        self.__model_input = self.input_origin
+        self.__model_input.update(kwargs)
         self.__model_output = {}
         self.__output_valid = False
+        
+    def __set_input(self, key, val):
+        self.__output_valid = False
+        self.__model_input[key] = val
+        
+    T = property(
+        fget = lambda self: self.__model_input["T"],
+        fset = lambda self, newVal: self.__set_input('T', newVal))
 
 def Simulate_OMR(T, N_f0, x_f0, P_f, N_s0, x_s0, P_s, A_mem, sigma, L, Lc):
     """
