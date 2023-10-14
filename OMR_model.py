@@ -11,6 +11,10 @@ from scipy.optimize import fsolve
 sol1 = ct.Solution('gri30.yaml')
 sol2 = ct.Solution('gri30.yaml')
 
+# Minimum conversion coefficient output by root solver
+# considered to be a "converged" solution. 
+CONV_THRESHOLD = 1
+
 class Experiment:
     input_origin = {
         'T' : 950, 
@@ -23,41 +27,26 @@ class Experiment:
         self.__model_input.update(kwargs)
         
     def __set_input(self, key, val):
+        try: del self.__model_output; except AttributeError: pass
+        try: del self.__analyzed_output; except AttributeError: pass
         self.__model_input[key] = val
         
-    T = property(
-        fget = lambda self: self.__model_input['T'],
-        fset = lambda self, newVal: self.__set_input('T', newVal))
-    N_f0 = property(
-        fget = lambda self: self.__model_input['N_f0'],
-        fset = lambda self, newVal: self.__set_input('N_f0', newVal))
-    x_f0 = property(
-        fget = lambda self: self.__model_input['x_f0'],
-        fset = lambda self, newVal: self.__set_input('x_f0', newVal))
-    P_f = property(
-        fget = lambda self: self.__model_input['P_f'],
-        fset = lambda self, newVal: self.__set_input('P_f', newVal))
-    N_s0 = property(
-        fget = lambda self: self.__model_input['N_s0'],
-        fset = lambda self, newVal: self.__set_input('N_s0', newVal))
-    x_s0 = property(
-        fget = lambda self: self.__model_input['x_s0'],
-        fset = lambda self, newVal: self.__set_input('x_s0', newVal))
-    P_s = property(
-        fget = lambda self: self.__model_input['P_s'],
-        fset = lambda self, newVal: self.__set_input('P_s', newVal))
-    A_mem = property(
-        fget = lambda self: self.__model_input['A_mem'],
-        fset = lambda self, newVal: self.__set_input('A_mem', newVal))
-    sigma = property(
-        fget = lambda self: self.__model_input['sigma'],
-        fset = lambda self, newVal: self.__set_input('sigma', newVal))
-    L = property(
-        fget = lambda self: self.__model_input['L'],
-        fset = lambda self, newVal: self.__set_input('L', newVal))
-    Lc = property(
-        fget = lambda self: self.__model_input['Lc'],
-        fset = lambda self, newVal: self.__set_input('Lc', newVal))
+    def __add_input_property(name):
+        return property(
+            fget = lambda self: self.__model_input[name],
+            fset = lambda self, newVal: self.__set_input(name, newVal))
+        
+    T = __add_input_property('T')
+    N_f0 = __add_input_property('N_f0')
+    x_f0 = __add_input_property('x_f0')
+    P_f = __add_input_property(('P_f'))
+    N_s0 = __add_input_property('N_s0')
+    x_s0 = __add_input_property('x_s0')
+    P_s = __add_input_property('P_s')
+    A_mem = __add_input_property('A_mem')
+    sigma = __add_input_property('sigma')
+    L = __add_input_property('L')
+    Lc = __add_input_property('Lc')
     
     def print_input(self):
         col_template = '{: <15}{: >20}'; col_sep = ', '
@@ -78,39 +67,85 @@ class Experiment:
     def __get_output(self, key):
         try:
             return self.__model_output[key]
-        except KeyError:
-            raise RuntimeError('This Experiment has not been run yet')
+        except AttributeError:
+            raise AttributeError('This Experiment has not been run yet')
             
-    N_f = property(
-        fget = lambda self: self.__get_output('N_f'),
-        fset = None)
-    x_f = property(
-        fget = lambda self: self.__get_output('x_f'),
-        fset = None)
-    p_o2_f = property(
-        fget = lambda self: self.__get_output('p_o2_f'),
-        fset = None)
-    N_s = property(
-        fget = lambda self: self.__get_output('N_s'),
-        fset = None)
-    x_s = property(
-        fget = lambda self: self.__get_output('x_s'),
-        fset = None)
-    p_o2_s = property(
-        fget = lambda self: self.__get_output('p_o2_s'),
-        fset = None)
-    N_o2 = property(
-        fget = lambda self: self.__get_output('N_o2'),
-        fset = None)
-    dH = property(
-        fget = lambda self: self.__get_output('dH'),
-        fset = None)
-    x_comp = property(
-        fget = lambda self: self.__get_output('x_comp'),
-        fset = None)
-    conv = property(
-        fget = lambda self: self.__get_output('conv'),
-        fset = None)
+    def __add_output_property(name):
+        return property(
+            fget = lambda self: self.__get_output(name),
+            fset = None)
+            
+    N_f = __add_output_property('N_f')
+    x_f = __add_output_property('x_f')
+    p_o2_f = __add_output_property('p_o2_f')
+    N_s = __add_output_property('N_s'))
+    x_s = __add_output_property('x_s')
+    p_o2_s = __add_output_property('p_o2_s')
+    N_o2 = __add_output_property('N_o2')
+    dH = __add_output_property('dH')
+    x_comp = __add_output_property('x_comp')
+    conv = __add_output_property('conv')
+    
+    def run(self):
+        self.__model_output = {}
+        self.__model_output['N_f'], self.__model_output['x_f'], self.__model_output['p_o2_f'], 
+        self.__model_output['N_s'], self.__model_output['x_s'], self.__model_output['p_o2_s'],  
+        self.__model_output['N_o2'], self.__model_output['dH'],
+        self.__model_output['x_comp'], self.__model_output['conv'] 
+        = Simulate_OMR(
+            self.T,
+            self.N_f0, self.x_f0, self.P_f,
+            self.N_s0, self.x_s0, self.P_s,
+            self.A_mem, self.sigma, self.L, self.Lc)
+        if self.conv < CONV_THRESHOLD:
+            temp_conv = self.conv
+            del self.__model_output
+            raise RuntimeError(f'Simulation failed to converge with {temp_conv}')
+         
+    def __get_analysis(self, key):
+        try:
+            return self.__analysis[key]
+        except AttributeError:
+            raise AttributeError('This Experiment has not been analyzed yet')
+         
+    def __add_analysis_property(name):
+        return property(
+            fget = lambda self: self.__get_analysis(name),
+            fset = None)
+
+    f_H2_prod = __add_analysis_property('f_H2_prod')
+    s_H2_prod = __add_analysis_property('s_H2_prod')
+    s_CO_prod = __add_analysis_property('s_CO_prod')
+    H2O_conv = __add_analysis_property('H2O_conv')
+    CH4_conv = __add_analysis_property('CH4_conv')
+    CO_sel = __add_analysis_property('CO_sel')
+    O2_conv = __add_analysis_property('O2_conv')
+            
+    def analyze(self):
+        try:
+            self.__analyzed_output = {}
+            self.__analyzed_output['f_H2_prod'] = self.x_f[0][self.x_comp.index("H2")] * self.N_f
+            self.__analyzed_output['s_H2_prod'] = self.x_s[0][self.x_comp.index("H2")] * self.N_s
+            self.__analyzed_output['s_CO_prod'] = self.x_s[0][self.x_comp.index("CO")] * self.N_s
+            self.__analyzed_output['H2O_conv'] = ( self.N_f0 - self.x_f[0][self.x_comp.index("H2O")] * self.N_f ) / self.N_f0
+            self.__analyzed_output['CH4_conv'] = self.N_s0 - self.x_s[0][self.x_comp.index("CH4")] * self.N_s ) / self.N_s0
+            self.__analyzed_output['CO_sel'] = self.s_CO_prod / (self.s_CO_prod + self.x_s[0][self.x_comp.index("CO2")])
+            self.__analyzed_output['O2_conv'] = (1 - (self.x_s[0][self.x_comp.index("O2")] / self.N_o2))
+        except AttributeError:
+            del self.__analyzed_output
+            raise AttributeError('This Experiment has not been run yet')
+            
+    def print_analysis(self):
+        if not hasattr(self, '__analyzed_output'):
+            raise AttributeError('This Experiment has not been analyzed yet')
+        col_template = '{: <20}{: >20}'; col_sep = ', '
+        print(col_template.format('Feed H2 produced:', f'{self.f_H2_prod:.2e} mol/min'))
+        print(col_template.format('H2O conversion:', f'{self.H2O_conv:.0%}'))
+        print(f'Sweep syngas produced: {self.s_H2_prod:.2e} mol/min H2 + {self.s_CO_prod:.2e} mol/min CO ({self.s_H2_prod/self.s_CO_prod:.2f}:1)')
+        print(col_template.format('CH4 conversion:', f'{self.CH4_conv:.0%}'))
+        print(col_template.format('CO selectivity:', f'{self.CO_sel:.0%}'))
+        print(col_template.format('Sweep O2 conversion:', f'{self.O2_conv:.0%}'))
+        print(col_template.format('Reaction heat:', f'{self.dH:.2f} W'))
 
 def Simulate_OMR(T, N_f0, x_f0, P_f, N_s0, x_s0, P_s, A_mem, sigma, L, Lc):
     """
@@ -185,7 +220,7 @@ def Simulate_OMR(T, N_f0, x_f0, P_f, N_s0, x_s0, P_s, A_mem, sigma, L, Lc):
         prog = (i+1)/len(T)*100
         if len(T)>1:
             print('%.0f' % prog, '%')
-    if not np.all(conv == 1):
+    if not np.all(conv >= CONV_THRESHOLD):
         print("Warning: Non converged solution detected! Check conv array.")
     return(N_f, x_f, p_o2_f, N_s, x_s, p_o2_s, N_o2, dH, x_comp, conv)
 
