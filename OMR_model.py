@@ -27,8 +27,10 @@ class Experiment:
         self.__model_input.update(kwargs)
         
     def __set_input(self, key, val):
-        try: del self.__model_output; except AttributeError: pass
-        try: del self.__analyzed_output; except AttributeError: pass
+        try: del self.__model_output
+        except AttributeError: pass
+        try: del self.__analyzed_output
+        except AttributeError: pass
         self.__model_input[key] = val
         
     def __add_input_property(name):
@@ -50,6 +52,7 @@ class Experiment:
     
     def print_input(self):
         col_template = '{: <15}{: >20}'; col_sep = ', '
+        print(f'{"Reactor properties":~^50}')
         print(col_template.format('Temperature:', str(self.T) + ' °C'))
         print(col_template.format('Feed:', f'{self.N_f0:.2e}' + ' mol/min'), 
               col_sep, '{: >15}'.format(self.x_f0), sep='')
@@ -57,7 +60,7 @@ class Experiment:
               col_sep, '{: >15}'.format(self.x_s0), sep='')
         print(col_template.format('Feed pressure:', str(self.P_f) + ' Pa'))
         print(col_template.format('Sweep pressure:', str(self.P_s) + ' Pa'))
-        print('Membrane:')
+        print(f'{"Membrane properties":~^50}')
         col_template = '{: <15}{: >10}'
         print(col_template.format('Area:', str(self.A_mem) + ' cm²'), 
               col_sep, col_template.format('sigma: ', str(self.sigma) + ' S/m'), sep='')
@@ -78,7 +81,7 @@ class Experiment:
     N_f = __add_output_property('N_f')
     x_f = __add_output_property('x_f')
     p_o2_f = __add_output_property('p_o2_f')
-    N_s = __add_output_property('N_s'))
+    N_s = __add_output_property('N_s')
     x_s = __add_output_property('x_s')
     p_o2_s = __add_output_property('p_o2_s')
     N_o2 = __add_output_property('N_o2')
@@ -88,15 +91,18 @@ class Experiment:
     
     def run(self):
         self.__model_output = {}
-        self.__model_output['N_f'], self.__model_output['x_f'], self.__model_output['p_o2_f'], 
-        self.__model_output['N_s'], self.__model_output['x_s'], self.__model_output['p_o2_s'],  
-        self.__model_output['N_o2'], self.__model_output['dH'],
-        self.__model_output['x_comp'], self.__model_output['conv'] 
+        self.__model_output['N_f'], self.__model_output['x_f'], self.__model_output['p_o2_f'], \
+        self.__model_output['N_s'], self.__model_output['x_s'], self.__model_output['p_o2_s'], \
+        self.__model_output['N_o2'], self.__model_output['dH'], \
+        self.__model_output['x_comp'], self.__model_output['conv'] \
         = Simulate_OMR(
             self.T,
             self.N_f0, self.x_f0, self.P_f,
             self.N_s0, self.x_s0, self.P_s,
             self.A_mem, self.sigma, self.L, self.Lc)
+        for key in self.__model_output:
+            if key != 'x_comp':
+                self.__model_output[key] = self.__model_output[key][0]
         if self.conv < CONV_THRESHOLD:
             temp_conv = self.conv
             del self.__model_output
@@ -104,7 +110,7 @@ class Experiment:
          
     def __get_analysis(self, key):
         try:
-            return self.__analysis[key]
+            return self.__analyzed_output[key]
         except AttributeError:
             raise AttributeError('This Experiment has not been analyzed yet')
          
@@ -124,28 +130,29 @@ class Experiment:
     def analyze(self):
         try:
             self.__analyzed_output = {}
-            self.__analyzed_output['f_H2_prod'] = self.x_f[0][self.x_comp.index("H2")] * self.N_f
-            self.__analyzed_output['s_H2_prod'] = self.x_s[0][self.x_comp.index("H2")] * self.N_s
-            self.__analyzed_output['s_CO_prod'] = self.x_s[0][self.x_comp.index("CO")] * self.N_s
-            self.__analyzed_output['H2O_conv'] = ( self.N_f0 - self.x_f[0][self.x_comp.index("H2O")] * self.N_f ) / self.N_f0
-            self.__analyzed_output['CH4_conv'] = self.N_s0 - self.x_s[0][self.x_comp.index("CH4")] * self.N_s ) / self.N_s0
-            self.__analyzed_output['CO_sel'] = self.s_CO_prod / (self.s_CO_prod + self.x_s[0][self.x_comp.index("CO2")])
-            self.__analyzed_output['O2_conv'] = (1 - (self.x_s[0][self.x_comp.index("O2")] / self.N_o2))
+            self.__analyzed_output['f_H2_prod'] = self.x_f[self.x_comp.index("H2")] * self.N_f
+            self.__analyzed_output['s_H2_prod'] = self.x_s[self.x_comp.index("H2")] * self.N_s
+            self.__analyzed_output['s_CO_prod'] = self.x_s[self.x_comp.index("CO")] * self.N_s
+            self.__analyzed_output['H2O_conv'] = ( self.N_f0 - self.x_f[self.x_comp.index("H2O")] * self.N_f ) / self.N_f0
+            self.__analyzed_output['CH4_conv'] = ( self.N_s0 - self.x_s[self.x_comp.index("CH4")] * self.N_s ) / self.N_s0
+            self.__analyzed_output['CO_sel'] = self.s_CO_prod / (self.s_CO_prod + self.x_s[self.x_comp.index("CO2")])
+            self.__analyzed_output['O2_conv'] = (1 - (self.x_s[self.x_comp.index("O2")] / self.N_o2))
         except AttributeError:
             del self.__analyzed_output
             raise AttributeError('This Experiment has not been run yet')
             
     def print_analysis(self):
-        if not hasattr(self, '__analyzed_output'):
+        try:        
+            col_template = '{: <20}{: >20}'; #col_sep = ', '
+            print(col_template.format('Feed H2 produced:', f'{self.f_H2_prod:.2e} mol/min'))
+            print(col_template.format('H2O conversion:', f'{self.H2O_conv:.0%}'))
+            print(f'Sweep syngas produced: {self.s_H2_prod:.2e} mol/min H2 + {self.s_CO_prod:.2e} mol/min CO ({self.s_H2_prod/self.s_CO_prod:.2f}:1)')
+            print(col_template.format('CH4 conversion:', f'{self.CH4_conv:.0%}'))
+            print(col_template.format('CO selectivity:', f'{self.CO_sel:.0%}'))
+            print(col_template.format('Sweep O2 conversion:', f'{self.O2_conv:.0%}'))
+            print(col_template.format('Reaction heat:', f'{self.dH:.2f} W'))
+        except AttributeError:
             raise AttributeError('This Experiment has not been analyzed yet')
-        col_template = '{: <20}{: >20}'; col_sep = ', '
-        print(col_template.format('Feed H2 produced:', f'{self.f_H2_prod:.2e} mol/min'))
-        print(col_template.format('H2O conversion:', f'{self.H2O_conv:.0%}'))
-        print(f'Sweep syngas produced: {self.s_H2_prod:.2e} mol/min H2 + {self.s_CO_prod:.2e} mol/min CO ({self.s_H2_prod/self.s_CO_prod:.2f}:1)')
-        print(col_template.format('CH4 conversion:', f'{self.CH4_conv:.0%}'))
-        print(col_template.format('CO selectivity:', f'{self.CO_sel:.0%}'))
-        print(col_template.format('Sweep O2 conversion:', f'{self.O2_conv:.0%}'))
-        print(col_template.format('Reaction heat:', f'{self.dH:.2f} W'))
 
 def Simulate_OMR(T, N_f0, x_f0, P_f, N_s0, x_s0, P_s, A_mem, sigma, L, Lc):
     """
