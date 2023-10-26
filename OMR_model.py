@@ -7,6 +7,7 @@ Created on Mon Sep 26 16:48:09 2022
 import cantera as ct
 import numpy as np
 from scipy.optimize import fsolve
+import copy
 #Load GRI-Mech 3.0 mechanism
 sol1 = ct.Solution('gri30.yaml')
 sol2 = ct.Solution('gri30.yaml')
@@ -23,7 +24,7 @@ class Experiment:
         'A_mem' : 2.41, 'sigma' : 1.3, 'L' : 250, 'Lc' : 0}
     
     def __init__(self, **kwargs):
-        self.__model_input = self.input_origin
+        self.__model_input = copy.deepcopy(self.input_origin)
         self.__model_input.update(kwargs)
         
     def __set_input(self, key, val):
@@ -153,6 +154,24 @@ class Experiment:
             print(col_template.format('Reaction heat:', f'{self.dH:.2f} W'))
         except AttributeError:
             raise AttributeError('This Experiment has not been analyzed yet')
+            
+    def grid(**kwargs):
+        shape = tuple((len(axis) for axis in kwargs.values()))
+        ret_arr = np.empty(shape, dtype=Experiment)
+        
+        coords_1D = [np.arange(0,len(axis)) for axis in kwargs.values()]
+        flat_coords = [coord_arr.flat for coord_arr in 
+                       np.meshgrid(*coords_1D, copy=False)]
+        
+        flat_inputs = [coord_arr.flat for coord_arr in 
+                       np.meshgrid(*kwargs.values(), copy=False)]
+        
+        
+        for input_point,arr_point in zip(zip(*flat_inputs), zip(*flat_coords)):
+            init_dict = {input_var:val for input_var,val in zip(kwargs.keys(), input_point)}
+            ret_arr[arr_point] = Experiment(**init_dict)
+            
+        return ret_arr
 
 def Simulate_OMR(T, N_f0, x_f0, P_f, N_s0, x_s0, P_s, A_mem, sigma, L, Lc):
     """
