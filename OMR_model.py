@@ -12,11 +12,66 @@ import copy
 sol1 = ct.Solution('gri30.yaml')
 sol2 = ct.Solution('gri30.yaml')
 
-# Minimum conversion coefficient output by root solver
-# considered to be a "converged" solution. 
 CONV_THRESHOLD = 1
+"""
+Minimum conversion coefficient output by root solver
+considered to be a "converged" solution. 
+"""
 
 class Experiment:
+    """Object-oriented user interface for Simulate_OMR
+    
+    An Experiment object encapsulates the inputs and outputs
+    for an OMR simulation. The idea is to keep all the input/output
+    parameters in one place for tidier code and easier interactive usage.
+    
+    An Experiment stores three kinds of data:
+        - Model inputs. These are set by the user and passed to Simulate_OMR.
+        - Model outputs. These are returned by Simulate_OMR and can be read 
+          but not set by the user.
+        - Analyzed outputs. This is data computed from the model outputs.
+          Like the model outputs, it can be read but not set by the user.
+          
+    Workflow for using Experiment objects:
+        1. Create an Experiment object. Model inputs can be passed as keyword 
+           arguments to the constructor, or set on the object after calling 
+           the constructor.
+        2. Call the run method on the Experiment object to produce model 
+           outputs.
+        3. Call the analyze method on the Experiment object to produce analyzed 
+           outputs.
+           
+    Example usage:
+        experiments = []
+        for temperature in numpy.linspace(900, 1000):
+            # Initializing model inputs by passing keyword arguments to constructor
+            experiments.append(Experiment(T=temperature)) 
+        experiments[0].print_input()
+        for e in experiments:
+            # Direct access to model inputs as attributes
+            e.P_f = 1.1 * 101325
+        for e in experiments: 
+            # Typical workflow
+            e.run()
+            e.analyze()
+            e.print_analysis()
+        # Direct access to analyzed outputs as attributes
+        H2O_conversion = [e.H2O_conv for e in experiments]
+           
+    Public methods and variables:
+        input_origin -- Origin point of the model parameter space. The default 
+        constructor uses this as the model input. Can be modified at runtime
+        to affect all future calls to the constructor.
+        __init__() -- constructor
+        print_input() -- print the model inputs
+        run() -- call Simulate_OMR with the model inputs and record the model 
+        outputs
+        analyze() -- compute analyzed outputs from model outputs
+        print_analysis() -- print analyzed outputs
+        grid() -- generate a dense meshgrid of Experiment objects, used for 
+        sampling a parameter space
+    """
+    
     input_origin = {
         'T' : 950, 
         'N_f0' : 3.985e-4, 'x_f0' : 'H2O:1', 'P_f' : 101325, 
@@ -24,6 +79,20 @@ class Experiment:
         'A_mem' : 2.41, 'sigma' : 1.3, 'L' : 250, 'Lc' : 0}
     
     def __init__(self, **kwargs):
+        """Construct an Experiment object and set model inputs
+
+        Parameters
+        ----------
+        **kwargs : float
+            The user can optionally specify model inputs to initialize the 
+            Experiment object by passing keyword arguments with the name of the 
+            argument matching the name of the input variable.
+
+        Returns
+        -------
+        Experiment object with initialized model inputs.
+
+        """
         self.__model_input = copy.deepcopy(self.input_origin)
         self.__model_input.update(kwargs)
         
@@ -52,6 +121,13 @@ class Experiment:
     Lc = __add_input_property('Lc')
     
     def print_input(self):
+        """Print model inputs
+        
+        Returns
+        -------
+        None.
+
+        """
         col_template = '{: <15}{: >20}'; col_sep = ', '
         print(f'{"Reactor properties":~^50}')
         print(col_template.format('Temperature:', str(self.T) + ' °C'))
@@ -91,6 +167,23 @@ class Experiment:
     conv = __add_output_property('conv')
     
     def run(self):
+        """Run OMR model and record model outputs
+        
+        After any change of model inputs (including after initialization), 
+        this method must be called before accessing model outputs or analyzed 
+        outputs.
+        
+        Raises
+        ------
+        RuntimeError
+            Raised when model fails to converge (convergence threshold 
+            specified by CONV_THRESHOLD).
+
+        Returns
+        -------
+        None.
+
+        """
         self.__model_output = {}
         self.__model_output['N_f'], self.__model_output['x_f'], self.__model_output['p_o2_f'], \
         self.__model_output['N_s'], self.__model_output['x_s'], self.__model_output['p_o2_s'], \
@@ -129,6 +222,23 @@ class Experiment:
     O2_conv = __add_analysis_property('O2_conv')
             
     def analyze(self):
+        """Compute analyzed outputs from model outputs
+        
+        After any change of model inputs (including after initialization), 
+        this method must be called after run() and before accessing model 
+        analyzed outputs.
+        
+        Raises
+        ------
+        AttributeError
+            Raised when this method is called before model outputs are
+            available.
+
+        Returns
+        -------
+        None.
+
+        """
         try:
             self.__analyzed_output = {}
             self.__analyzed_output['f_H2_prod'] = self.x_f[self.x_comp.index("H2")] * self.N_f
@@ -143,6 +253,19 @@ class Experiment:
             raise AttributeError('This Experiment has not been run yet')
             
     def print_analysis(self):
+        """Print analyzed outputs
+        
+        Raises
+        ------
+        AttributeError
+            Raised if this method is called before analyzed outputs are 
+            available.
+
+        Returns
+        -------
+        None.
+
+        """
         try:        
             col_template = '{: <20}{: >20}'; #col_sep = ', '
             print(col_template.format('Feed H2 produced:', f'{self.f_H2_prod:.2e} mol/min'))
@@ -156,6 +279,38 @@ class Experiment:
             raise AttributeError('This Experiment has not been analyzed yet')
             
     def grid(**kwargs):
+        """Generate meshgrid of Experiments
+        
+        Given input variables and their ranges, this method generates an 
+        ND-array of Experiments to explore the entire specified parameter
+        space. For each variable specified as a keyword argument, the returned
+        array of Experiments will have an axis along which Experiments are 
+        initialized with the values of the input variable.
+
+        Parameters
+        ----------
+        **kwargs : ndarray
+            Each keyword argument should be given as var=numpy.array(...), 
+            where var specifies the name of a model input parameter and is set 
+            to an ordered, regularly spaced array of values (e.g. created with
+            numpy.linspace or numpy.arange). 
+
+        Returns
+        -------
+        ret_arr : ndarray
+            Array of Experiment objects. The order of indices is the same as 
+            the order of keyword arguments.
+            
+        Example usage
+        -------------
+        exs = Experiment.grid(T=numpy.array([900,950,1000]),
+                              P_f=numpy.array([101325, 1.1*101325, 1.2*101325]),
+                              P_s=numpy.array([0.8*101325, 0.9*101325, 101325]))
+        exs[2, 0, 1].T == 1000
+        exs[2, 0, 1].P_f == 101325
+        exs[2, 0, 1].P_s == 0.9*101325
+
+        """
         shape = tuple((len(axis) for axis in kwargs.values()))
         ret_arr = np.empty(shape, dtype=Experiment)
         
