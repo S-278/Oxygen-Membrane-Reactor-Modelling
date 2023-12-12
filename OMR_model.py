@@ -507,3 +507,24 @@ def CalculateOutputs(j_o2,mix_f,mix_s,H_in, A_mem):
     H_out = (mix_f.phase(0).enthalpy_mole*mix_f.phase_moles()[0]+mix_s.phase(0).enthalpy_mole*mix_s.phase_moles()[0])/1000
     dH = H_out - H_in
     return(x_comp,p_o2_f,p_o2_s,N_f,N_s, N_o2,x_f,x_s,dH)
+
+def find_pO2(T, P_f, N_f0, x_f0, P_s, N_s0, x_s0, j_o2):
+    sol1.TPX = T+273.15, P_f, x_f0
+    mix_f = ct.Mixture([(sol1,N_f0/60)])
+
+    sol2.TPX = T+273.15, P_s, x_s0
+    mix_s = ct.Mixture([(sol2,N_s0/60)])
+
+    a_H_f,a_O_f,a_Ar_f,a_N_f,a_C_f = Decompose(mix_f)
+    a_H_s,a_O_s,a_Ar_s,a_N_s,a_C_s = Decompose(mix_s)
+
+    mix_f.species_moles = 'H:'+str(a_H_f)+',O:'+str(a_O_f-2*j_o2*1e-4)+',AR:'+str(a_Ar_f)+',N:'+str(a_N_f)+',C:'+str(a_C_f)
+    mix_s.species_moles = 'H:'+str(a_H_s)+',O:'+str(a_O_s+2*j_o2*1e-4)+',AR:'+str(a_Ar_s)+',N:'+str(a_N_s)+',C:'+str(a_C_s)
+    
+    mix_f.equilibrate('TP')
+    mix_s.equilibrate('TP')
+    
+    p_o2_f = mix_f.species_moles[mix_f.species_index(0,'O2')]/mix_f.phase_moles()*mix_f.P
+    p_o2_s = mix_s.species_moles[mix_s.species_index(0,'O2')]/mix_s.phase_moles()*mix_s.P
+
+    return p_o2_f, p_o2_s
