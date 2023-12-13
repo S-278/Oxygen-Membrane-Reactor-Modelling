@@ -518,8 +518,8 @@ def find_pO2(T, P_f, N_f0, x_f0, P_s, N_s0, x_s0, j_o2):
     a_H_f,a_O_f,a_Ar_f,a_N_f,a_C_f = Decompose(mix_f)
     a_H_s,a_O_s,a_Ar_s,a_N_s,a_C_s = Decompose(mix_s)
 
-    mix_f.species_moles = 'H:'+str(a_H_f)+',O:'+str(a_O_f-2*j_o2*1e-4)+',AR:'+str(a_Ar_f)+',N:'+str(a_N_f)+',C:'+str(a_C_f)
-    mix_s.species_moles = 'H:'+str(a_H_s)+',O:'+str(a_O_s+2*j_o2*1e-4)+',AR:'+str(a_Ar_s)+',N:'+str(a_N_s)+',C:'+str(a_C_s)
+    mix_f.species_moles = 'H:'+str(a_H_f)+',O:'+str(a_O_f-2*j_o2)+',AR:'+str(a_Ar_f)+',N:'+str(a_N_f)+',C:'+str(a_C_f)
+    mix_s.species_moles = 'H:'+str(a_H_s)+',O:'+str(a_O_s+2*j_o2)+',AR:'+str(a_Ar_s)+',N:'+str(a_N_s)+',C:'+str(a_C_s)
     
     mix_f.equilibrate('TP')
     mix_s.equilibrate('TP')
