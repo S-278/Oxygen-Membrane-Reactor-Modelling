@@ -216,6 +216,7 @@ class Experiment:
     f_H2_prod = __add_analysis_property('f_H2_prod')
     s_H2_prod = __add_analysis_property('s_H2_prod')
     s_CO_prod = __add_analysis_property('s_CO_prod')
+    s_CO2_prod = __add_analysis_property('s_CO2_prod')
     H2O_conv = __add_analysis_property('H2O_conv')
     CH4_conv = __add_analysis_property('CH4_conv')
     CO_sel = __add_analysis_property('CO_sel')
@@ -244,9 +245,10 @@ class Experiment:
             self.__analyzed_output['f_H2_prod'] = self.x_f[self.x_comp.index("H2")] * self.N_f
             self.__analyzed_output['s_H2_prod'] = self.x_s[self.x_comp.index("H2")] * self.N_s
             self.__analyzed_output['s_CO_prod'] = self.x_s[self.x_comp.index("CO")] * self.N_s
+            self.__analyzed_output['s_CO2_prod'] = self.x_s[self.x_comp.index("CO2")] * self.N_s
             self.__analyzed_output['H2O_conv'] = ( self.N_f0 - self.x_f[self.x_comp.index("H2O")] * self.N_f ) / self.N_f0
             self.__analyzed_output['CH4_conv'] = ( self.N_s0 - self.x_s[self.x_comp.index("CH4")] * self.N_s ) / self.N_s0
-            self.__analyzed_output['CO_sel'] = self.s_CO_prod / (self.s_CO_prod + self.x_s[self.x_comp.index("CO2")])
+            self.__analyzed_output['CO_sel'] = self.s_CO_prod / (self.s_CO_prod + self.s_CO2_prod)
             self.__analyzed_output['O2_conv'] = (1 - (self.x_s[self.x_comp.index("O2")] / self.N_o2))
         except AttributeError:
             del self.__analyzed_output
