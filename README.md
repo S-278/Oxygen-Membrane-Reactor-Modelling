@@ -86,7 +86,7 @@ Inputs and outputs of the model
     x_comp : List of strings with size 53
         Composition array consisting of the considered species in the calculation.
     conv : Integer (array with length n)
-        Check whether convergence was achieved; Equal to 1 if converged.
+        Check whether convergence was achieved for the respective array index; Equal to 1 if converged.
 
 
 
