@@ -466,37 +466,26 @@ def Decompose(mix):
 
 def Solve(mix_f,mix_s,sigma,A_mem,L,Lc,a_H_f,a_O_f,a_Ar_f,a_N_f,a_C_f,a_H_s,a_O_s,a_Ar_s,a_N_s,a_C_s):
     def EquationsToSolve(x):
-        def init_str():
-            return 'H:'+str(a_H_f)+',O:'+str(a_O_f-2*j_o2_v*A_mem*1e-4)+',AR:'+str(a_Ar_f)+',N:'+str(a_N_f)+',C:'+str(a_C_f), \
-                    'H:'+str(a_H_s)+',O:'+str(a_O_s+2*j_o2_v*A_mem*1e-4)+',AR:'+str(a_Ar_s)+',N:'+str(a_N_s)+',C:'+str(a_C_s)
-        def init_set(str_f, str_s):
-            mix_f.species_moles = str_f
-            mix_s.species_moles = str_s
-        def equilibrate():
-            mix_f.equilibrate('TP')
-            mix_s.equilibrate('TP')
-        def pO2():
-            return mix_f.species_moles[mix_f.species_index(0,'O2')]/mix_f.phase_moles()*mix_f.P, \
-                    mix_s.species_moles[mix_s.species_index(0,'O2')]/mix_s.phase_moles()*mix_s.P
-        def Wagner():
-            return 8.31446261815324*(mix_f.T)*sigma/(16*96485.3321233100184**2*(L+2*Lc)*1e-6)*np.log(p_o2_f/p_o2_s)/j_o2_v-1
         #Avoid errors
         j_o2_v = x.item()
         if j_o2_v == 0:
             j_o2_v = 1e-100
         #Initial state
-        init_set(*init_str())
+        mix_f.species_moles = 'H:'+str(a_H_f)+',O:'+str(a_O_f-2*j_o2_v*A_mem*1e-4)+',AR:'+str(a_Ar_f)+',N:'+str(a_N_f)+',C:'+str(a_C_f)
+        mix_s.species_moles = 'H:'+str(a_H_s)+',O:'+str(a_O_s+2*j_o2_v*A_mem*1e-4)+',AR:'+str(a_Ar_s)+',N:'+str(a_N_s)+',C:'+str(a_C_s)
         #Calculate equilibrium
-        equilibrate()
+        mix_f.equilibrate('TP')
+        mix_s.equilibrate('TP')
         #Oxygen partial pressures
-        p_o2_f, p_o2_s = pO2()
+        p_o2_f = mix_f.species_moles[mix_f.species_index(0,'O2')]/mix_f.phase_moles()*mix_f.P
+        p_o2_s = mix_s.species_moles[mix_s.species_index(0,'O2')]/mix_s.phase_moles()*mix_s.P
         #Avoid errors
         if p_o2_f<=0:
             p_o2_f = 1e-100
         if p_o2_s<=0:
             p_o2_s = 1e-100
         #Wagner equation in SI units
-        f1 = Wagner()
+        f1 = 8.31446261815324*(mix_f.T)*sigma/(16*96485.3321233100184**2*(L+2*Lc)*1e-6)*np.log(p_o2_f/p_o2_s)/j_o2_v-1
         return f1
     #Solve equations
     j_o2,info,conv,msg =  fsolve(EquationsToSolve, x0=1e-10, full_output=1,maxfev=1000, xtol=1e-12)
