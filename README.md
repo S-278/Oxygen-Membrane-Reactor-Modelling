@@ -1,19 +1,19 @@
 Prequisites
 --
 - Numpy
-- Scipy
+- SciPy
 - Cantera (tested with version 2.6.0)
 - Matplotlib (used for plotting in the examples)
 
 
 Description
 --
-The Python script OMR_model.py allows to simulate oxygen membrane reactors with continuos gas flow rates as described in our publication [1].
+The Python script OMR_model.py allows to simulate oxygen membrane reactors with continuous gas flow rates as described in [1]. Model input values are the initial condition of the feed and sweep gas entering the chambers separated by the membrane, while the output values refer to the chemical equilibrium state in both chambers, which is affected by the oxygen flux through the membrane.  
 
-Chemical equilibrium is assumed on both sides of the membrane. The oxygen flux through the membrane is modelled using the Wagner equation and included into the chemical equilibrium calculation.
-The entire problem is then solved as a nested problem: The inner problem is the equilibrium calculation inluding an assumed oxygen flux using Cantera [2]. 
-The outer problem is a root finding problem to find the oxygen flux satisfying the Wagner equation in the equilibrium state which is solved using Scipy [3].
-A detailed explanation of the assumptions, limitations and equations including experimental validation can be found in our publication [1].
+Chemical equilibrium and perfect mixing is assumed in the entire sweep and feed chamber on both sides of the membrane. The oxygen flux through the membrane is modelled using the Wagner equation and included into the chemical equilibrium calculation.
+The entire problem is then solved as a nested problem: The inner problem is the equilibrium calculation including an assumed oxygen flux using Cantera [2]. 
+The outer problem is a root-finding problem to find the oxygen flux satisfying the Wagner equation in the equilibrium state which is solved using SciPy [3].
+A detailed explanation of the assumptions, limitations and equations including experimental validation can be found in [1].
 
 The implementation published here uses thermodynamic data from the Gri 3.0 mechanism [4] and subsequently considers 53 species. 
 Notable species herein include: [O2, H2O, H2, CH4, CO, CO2, N2, AR]
