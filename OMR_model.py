@@ -145,10 +145,9 @@ class Experiment:
               col_sep, col_template.format('char. length:', str(self.Lc) + ' um'), sep='')
             
     def __get_output(self, key):
-        try:
-            return self.__model_output[key]
-        except AttributeError:
-            raise AttributeError('This Experiment has not been run yet')
+        if not hasattr(self, "_Experiment__model_output"):
+            self.run()
+        return self.__model_output[key]
             
     def __add_output_property(name):
         return property(
@@ -203,10 +202,9 @@ class Experiment:
             raise RuntimeError(f'Simulation failed to converge with {temp_conv}')
          
     def __get_analysis(self, key):
-        try:
-            return self.__analyzed_output[key]
-        except AttributeError:
-            raise AttributeError('This Experiment has not been analyzed yet')
+        if not hasattr(self, "_Experiment__analyzed_output"):
+            self.analyze()
+        return self.__analyzed_output[key]
          
     def __add_analysis_property(name):
         return property(
@@ -229,56 +227,41 @@ class Experiment:
         this method must be called after run() and before accessing model 
         analyzed outputs.
         
-        Raises
-        ------
-        AttributeError
-            Raised when this method is called before model outputs are
-            available.
-
         Returns
         -------
         None.
 
         """
-        try:
-            self.__analyzed_output = {}
-            self.__analyzed_output['f_H2_prod'] = self.x_f[self.x_comp.index("H2")] * self.N_f
-            self.__analyzed_output['s_H2_prod'] = self.x_s[self.x_comp.index("H2")] * self.N_s
-            self.__analyzed_output['s_CO_prod'] = self.x_s[self.x_comp.index("CO")] * self.N_s
-            self.__analyzed_output['s_CO2_prod'] = self.x_s[self.x_comp.index("CO2")] * self.N_s
-            self.__analyzed_output['H2O_conv'] = ( self.N_f0 - self.x_f[self.x_comp.index("H2O")] * self.N_f ) / self.N_f0
-            self.__analyzed_output['CH4_conv'] = ( self.N_s0 - self.x_s[self.x_comp.index("CH4")] * self.N_s ) / self.N_s0
-            self.__analyzed_output['CO_sel'] = self.s_CO_prod / (self.s_CO_prod + self.s_CO2_prod)
-            self.__analyzed_output['O2_conv'] = (1 - (self.x_s[self.x_comp.index("O2")] / self.N_o2))
-        except AttributeError:
-            del self.__analyzed_output
-            raise AttributeError('This Experiment has not been run yet')
+        if not hasattr(self, "_Experiment__model_output"):
+            self.run()
+        self.__analyzed_output = {}
+        self.__analyzed_output['f_H2_prod'] = self.x_f[self.x_comp.index("H2")] * self.N_f
+        self.__analyzed_output['s_H2_prod'] = self.x_s[self.x_comp.index("H2")] * self.N_s
+        self.__analyzed_output['s_CO_prod'] = self.x_s[self.x_comp.index("CO")] * self.N_s
+        self.__analyzed_output['s_CO2_prod'] = self.x_s[self.x_comp.index("CO2")] * self.N_s
+        self.__analyzed_output['H2O_conv'] = ( self.N_f0 - self.x_f[self.x_comp.index("H2O")] * self.N_f ) / self.N_f0
+        self.__analyzed_output['CH4_conv'] = ( self.N_s0 - self.x_s[self.x_comp.index("CH4")] * self.N_s ) / self.N_s0
+        self.__analyzed_output['CO_sel'] = self.s_CO_prod / (self.s_CO_prod + self.s_CO2_prod)
+        self.__analyzed_output['O2_conv'] = (1 - (self.x_s[self.x_comp.index("O2")] / self.N_o2))
             
     def print_analysis(self):
         """Print analyzed outputs
         
-        Raises
-        ------
-        AttributeError
-            Raised if this method is called before analyzed outputs are 
-            available.
-
         Returns
         -------
         None.
 
         """
-        try:        
-            col_template = '{: <20}{: >20}'; #col_sep = ', '
-            print(col_template.format('Feed H2 produced:', f'{self.f_H2_prod:.2e} mol/min'))
-            print(col_template.format('H2O conversion:', f'{self.H2O_conv:.0%}'))
-            print(f'Sweep syngas produced: {self.s_H2_prod:.2e} mol/min H2 + {self.s_CO_prod:.2e} mol/min CO ({self.s_H2_prod/self.s_CO_prod:.2f}:1)')
-            print(col_template.format('CH4 conversion:', f'{self.CH4_conv:.0%}'))
-            print(col_template.format('CO selectivity:', f'{self.CO_sel:.0%}'))
-            print(col_template.format('Sweep O2 conversion:', f'{self.O2_conv:.0%}'))
-            print(col_template.format('Reaction heat:', f'{self.dH:.2f} W'))
-        except AttributeError:
-            raise AttributeError('This Experiment has not been analyzed yet')
+        if not hasattr(self, "_Experiment__analyzed_output"):
+            self.analyze()        
+        col_template = '{: <20}{: >20}'; #col_sep = ', '
+        print(col_template.format('Feed H2 produced:', f'{self.f_H2_prod:.2e} mol/min'))
+        print(col_template.format('H2O conversion:', f'{self.H2O_conv:.0%}'))
+        print(f'Sweep syngas produced: {self.s_H2_prod:.2e} mol/min H2 + {self.s_CO_prod:.2e} mol/min CO ({self.s_H2_prod/self.s_CO_prod:.2f}:1)')
+        print(col_template.format('CH4 conversion:', f'{self.CH4_conv:.0%}'))
+        print(col_template.format('CO selectivity:', f'{self.CO_sel:.0%}'))
+        print(col_template.format('Sweep O2 conversion:', f'{self.O2_conv:.0%}'))
+        print(col_template.format('Reaction heat:', f'{self.dH:.2f} W'))
             
     def grid(**kwargs):
         """Generate meshgrid of Experiments
