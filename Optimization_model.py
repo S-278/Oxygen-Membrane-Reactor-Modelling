@@ -13,11 +13,6 @@ import pint; u=pint.UnitRegistry()
 import copy
 import matplotlib.pyplot as plt
 
-PROFILE_ID = 2
-
-if PROFILE_ID != None:  
-    import cProfile
-
 XA_COORDS =  [("param", ["T", "N_f0", 'P_f', 'N_s0', 'P_s'])]
 
 CH4_HHV = 55384 * u.kJ/u.kg * 16.04 * u.g/u.mol
@@ -75,12 +70,12 @@ class ProcessModel:
         # Input water boiling
         H2O_boil_cons = exp.N_f0 * u.mol/u.min * self.H2O_BOILING_CONS
         # Input water preheating
-        H2O_preheat_cons =                                                             \
+        H2O_preheat_cons =                                                  \
             exp.N_f0 * u.mol/u.min                                          \
             * (u.Quantity(exp.T,u.degC) - u.Quantity(100,u.degC))           \
             * (1-self.HX_EFF) * self.H2O_PREHEAT_CONS
         # Input methane preheating
-        CH4_preheat_cons =                                                             \
+        CH4_preheat_cons =                                                  \
             exp.N_s0 * u.mol/u.min                                          \
             * (u.Quantity(exp.T,u.degC) - self.AMBIENT_T)                   \
             * (1-self.HX_EFF) * self.CH4_PREHEAT_CONS
@@ -175,26 +170,7 @@ class ProcessModel:
             data=[exp.T, exp.N_f0, exp.P_f, exp.N_s0, exp.P_s],
             coords=XA_COORDS)
         return optimize_wrapper(x0, bd, objective_f)
-    
-    def visualize_metrics(self, m : Metrics):
-        E_in_split = DataArray(
-            coords=[("E_in_category", [
-                                        "reactor_heat_supply",
-                                        "H2O_boil_cons",
-                                        "H2O_preheat_cons",
-                                        "CH4_preheat_cons",
-                                        "CO2_sep_heat_cons",
-                                        "ext_elec_cons"
-                                      ]
-                )])
-        for coord in E_in_split.coords["E_in_category"]:
-            E_in_split.loc[dict(E_in_category=coord.item())] = m[coord.item()].magnitude
-        plt_E_split, ax_E_inputs = plt.subplots(figsize=(6,3))
-        wedges, texts, autotexts = ax_E_inputs.pie(E_in_split, 
-                                                   autopct='%1.1f%%',
-                                                   radius=0.5)
-        ax_E_inputs.legend(wedges,E_in_split.coords["E_in_category"].data)
-    
+        
     def __remove_builtins(d : dict):
         for var_name in list(d):
             if (var_name.startswith('__') and var_name.endswith('__')): 
@@ -202,39 +178,20 @@ class ProcessModel:
 
     
 if __name__ == "main":
-    # e = Experiment(T=900, 
-    #                 N_f0=1e-4, x_f0="H2O:1", P_f=101325,
-    #                 N_s0=1e-4, x_s0="CH4:1", P_s=101325)
-    e = Experiment()
-    # e.run()
-    # e.analyze()
+    e = Experiment(T=900, 
+                    N_f0=1e-4, x_f0="H2O:1", P_f=101325,
+                    N_s0=1e-4, x_s0="CH4:1", P_s=101325)
     proc_model = ProcessModel()
-    # m = Metrics()
-    # proc_model.get_energy_eff(e, metrics=m)
-    # E_in_split = DataArray(
-    #     coords=[("E_in_category", [
-    #                                 "reactor_heat_supply",
-    #                                 "H2O_boil_cons",
-    #                                 "H2O_preheat_cons",
-    #                                 "CH4_preheat_cons",
-    #                                 "CO2_sep_heat_cons",
-    #                                 "ext_elec_cons"
-    #                               ]
-    #         )])
-    # for coord in E_in_split.coords["E_in_category"]:
-    #     E_in_split.loc[dict(E_in_category=coord.item())] = m[coord.item()].magnitude
-    
+    m = Metrics()    
     lb = DataArray(
         data=[800, e.A_mem * 1e-4 * 1e-2, 101325*0.9, e.A_mem * 1e-4 * 1e-2, 101325*0.9],
         coords=XA_COORDS)
     ub = DataArray(
         data=[1000, e.A_mem * 1e-4 * 100, 101325*2, e.A_mem * 1e-4 * 100, 101325*2],
         coords=XA_COORDS)
+    print("+++++++++++++++++ RUN _ ++++++++++++++++++")
     print("Starting optimizer...")
-    if PROFILE_ID != None:
-        cProfile.run("proc_model.optimize_experiment(e, Bounds(lb, ub))", "opt_prof_"+str(PROFILE_ID))
-    else:
-        res = proc_model.optimize_experiment(e, Bounds(lb, ub))
-        print(res)
+    res = proc_model.optimize_experiment(e, Bounds(lb, ub))
+    print(res)
     
     print("+++++++++++++++++ DONE ++++++++++++++++++")
