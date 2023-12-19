@@ -40,7 +40,7 @@ authors:
       Jülich, Germany
 identifiers:
   - type: doi
-    value: 10.0000/placeholder.0000
+    value: 10.5281/zenodo.10406025
 repository-code: >-
   https://github.com/KabitGit/Ideal-Equilibrium-Oxygen-Membrane-Reactor
 keywords:
