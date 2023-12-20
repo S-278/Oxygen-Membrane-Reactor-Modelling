@@ -262,6 +262,7 @@ class Experiment:
         print(col_template.format('CO selectivity:', f'{self.CO_sel:.0%}'))
         print(col_template.format('Sweep O2 conversion:', f'{self.O2_conv:.0%}'))
         print(col_template.format('Reaction heat:', f'{self.dH:.2f} W'))
+        print(col_template.format('Oxygen flux:', f'{self.N_o2:.2e} mol/min'))
             
     def grid(**kwargs):
         """Generate meshgrid of Experiments
