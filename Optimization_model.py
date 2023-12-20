@@ -11,10 +11,14 @@ from numpy import ndarray; import numpy
 from xarray import DataArray
 import pint; u=pint.UnitRegistry()
 import copy
-import matplotlib.pyplot as plt
+from math import tanh
 
 XA_COORDS =  [("param", ["T", "N_f0", 'P_f', 'N_s0', 'P_s'])]
 
+GAS_CONST = 8.314 * u.J/(u.mol * u.degK)
+GRAV_ACCEL = 9.81 * u.m/(u.s**2)
+CH4_M_Molar = 16.04 * u.g/u.mol
+H2O_M_Molar =  18.015 * u.g/u.mol
 CH4_HHV = 55384 * u.kJ/u.kg * 16.04 * u.g/u.mol
 CO_HHV = 10160 * u.kJ/u.kg * 28.01 * u.g/u.mol
 H2_HHV = 142081 * u.kJ/u.kg * 2.016 * u.g/u.mol
@@ -24,9 +28,9 @@ glb_opt_intermediates = numpy.zeros((2000))
 
 def optimize_wrapper(x0 : DataArray, bd : Bounds, f : callable) -> OptimizeResult:
     return scipy.optimize.direct(f, bd, 
-                                 eps=1e-2, locally_biased=False, 
-                                 maxfun=5000*5, maxiter=2000,
-                                 len_tol=1e-4
+                                 eps=1e-3, locally_biased=True, 
+                                 len_tol=1e-3, vol_tol=1*10**(-3*5),
+                                 maxfun=5000*5, maxiter=20000
                                  ,callback=optimize_cb
                                  )
 
@@ -38,6 +42,22 @@ def optimize_cb(xk):
     if glb_cb_ct % 100 == 0:
         print("CB invocation:", glb_cb_ct)
         
+def extract_opt_x(exp : Experiment) -> DataArray:
+    ret = DataArray(coords=XA_COORDS)
+    ret.loc[dict(param="T")] = exp.T
+    ret.loc[dict(param="N_f0")] = exp.N_f0
+    ret.loc[dict(param="P_f")] = exp.P_f
+    ret.loc[dict(param="N_s0")] = exp.N_s0
+    ret.loc[dict(param="P_s")] = exp.P_s
+    return ret
+
+def set_opt_x(exp : Experiment, xa : DataArray):
+    exp.T=xa.sel(param="T").item()
+    exp.N_f0=xa.sel(param="N_f0").item() 
+    exp.P_f=xa.sel(param="P_f").item()
+    exp.N_s0=xa.sel(param="N_s0").item()
+    exp.P_s=xa.sel(param="P_s").item()
+        
 class Metrics(dict):
     pass
 
@@ -45,12 +65,11 @@ class ProcessModel:
     def __init__(self):
         self.H2O_CYCLE_LOSS = 0.10
         self.H2O_PURIF_CONS = 4.52e-5 * u.kWh/u.mol
-        self.H2O_PUMPING_CONS = 7.01e-6 * u.kWh / u.mol
         self.H2O_BOILING_CONS = 76.6 * u.kJ/u.mol
         self.H2O_PREHEAT_CONS = 33.6 * u.J/(u.mol * u.delta_degC)
-        self.CH4_PUMPING_CONS = 6.34e-6 * u.kWh / u.mol
         self.CH4_PREHEAT_CONS = 35.7 * u.J/(u.mol * u.delta_degC)
         self.AMBIENT_T = u.Quantity(25, u.degC)
+        self.AMBIENT_P = 101325 * u.Pa
         self.HX_EFF = 0.9
         self.REACTOR_HEAT_LOSS = 0.10
         self.CONDENSER_CW_FLOW_RATIO = 2/1
@@ -58,6 +77,18 @@ class ProcessModel:
         self.CO2_SEP_E_CONS = 9 * u.kJ/u.mol
         self.CO2_SEP_H_CONS = 132 * u.kJ/u.mol
         self.RANKINE_EFF = 0.4
+        self.PUMPING_HEIGHT = 100 * u.m
+        
+        self.ambient_spec_vol = GAS_CONST * self.AMBIENT_T.to("degK") / self.AMBIENT_P
+        self.ambient_RT = GAS_CONST * self.AMBIENT_T.to("degK")
+        self.CH4_spec_grav_energy = CH4_M_Molar * GRAV_ACCEL * self.PUMPING_HEIGHT
+        self.H2Og_spec_grav_energy = H2O_M_Molar * GRAV_ACCEL * self.PUMPING_HEIGHT
+        self.H2Ol_spec_pump_cons = H2O_M_Molar * GRAV_ACCEL * self.PUMPING_HEIGHT
+        
+        self.SYNGAS_RATIO_TARGET = 2/1
+        self.SYNGAS_RATIO_TOL = 0.5
+        self.SYNGAS_RATIO_FILTER_STR = 5
+    
     
     def get_energy_eff(self, exp: Experiment, metrics : Metrics = None) -> float:  
         funct_params = copy.deepcopy(locals()); ProcessModel.__remove_builtins(funct_params)
@@ -96,8 +127,15 @@ class ProcessModel:
         # Input water purification
         H2O_pur_cons = exp.N_f0 * u.mol/u.min * self.H2O_CYCLE_LOSS * self.H2O_PURIF_CONS 
         # Input pumping
-        H2O_pump_cons = exp.N_f0 * u.mol/u.min * self.H2O_PUMPING_CONS
-        CH4_pump_cons = exp.N_s0 * u.mol/u.min * self.CH4_PUMPING_CONS
+        H2Ol_pump_cons = exp.N_f0 * u.mol/u.min * self.H2Ol_spec_pump_cons
+        deltaP_f = exp.P_f * u.Pa - self.AMBIENT_P
+        if deltaP_f < 0: deltaP_f = 0
+        H2Og_pump_cons = exp.N_f0 * u.mol/u.min * self.ambient_spec_vol *                                        \
+                        ((self.AMBIENT_P + deltaP_f)/self.ambient_RT * self.H2Og_spec_grav_energy + deltaP_f)
+        deltaP_s = exp.P_s * u.Pa - self.AMBIENT_P
+        if deltaP_s < 0: deltaP_s = 0
+        CH4_pump_cons = exp.N_s0 * u.mol/u.min * self.ambient_spec_vol *                                        \
+                        ((self.AMBIENT_P + deltaP_s)/self.ambient_RT * self.CH4_spec_grav_energy + deltaP_s)
         # Condenser operation
         H2_condenser_cons =                             \
             exp.N_f * u.mol/u.min                       \
@@ -112,7 +150,7 @@ class ProcessModel:
         CO2_sep_elec_cons = exp.s_CO2_prod * u.mol/u.min * self.CO2_SEP_E_CONS
 
         elec_consumed = H2O_pur_cons                                \
-                        + H2O_pump_cons + CH4_pump_cons             \
+                        + H2Ol_pump_cons + CH4_pump_cons             \
                         + H2_condenser_cons + CH4_condenser_cons    \
                         + CO2_sep_elec_cons
 
@@ -148,23 +186,29 @@ class ProcessModel:
             metrics.update(metrics_to_add)
             
         return efficiency_tot.magnitude
-        
+    
+    def syngas_ratio_filter(self, ratio: float) -> float:
+        halfpt_lo = self.SYNGAS_RATIO_TARGET-self.SYNGAS_RATIO_TOL
+        halfpt_hi = self.SYNGAS_RATIO_TARGET+self.SYNGAS_RATIO_TOL
+        return -0.5 *(                                                              \
+                      tanh(self.SYNGAS_RATIO_FILTER_STR * (ratio - halfpt_hi)) +    \
+                      tanh(self.SYNGAS_RATIO_FILTER_STR * (-1*ratio + halfpt_lo))   \
+                     ) + 0
+
+    
+    def eval_experiment(self, exp: Experiment) -> float:
+        return self.get_energy_eff(exp) * self.syngas_ratio_filter(exp.s_H2_prod/exp.s_CO_prod)
     
     def optimize_experiment(self, exp: Experiment, bd: Bounds) -> OptimizeResult:
         
         def objective_f(x : ndarray) -> float:
             xa = DataArray(data=x, coords=XA_COORDS)
-            e = Experiment(
-                T=xa.sel(param="T").item(),
-                N_f0=xa.sel(param="N_f0").item(), 
-                P_f=xa.sel(param="P_f").item(),
-                N_s0=xa.sel(param="N_s0").item(),
-                P_s=xa.sel(param="P_s").item(),
-                x_f0=exp.x_f0, x_s0=exp.x_s0,
-                A_mem=exp.A_mem, sigma=exp.sigma, L=exp.L, Lc=exp.Lc)
+            e = Experiment(x_f0=exp.x_f0, x_s0=exp.x_s0,
+                           A_mem=exp.A_mem, sigma=exp.sigma, L=exp.L, Lc=exp.Lc)
+            set_opt_x(e, xa)
             e.run()
             e.analyze()
-            return -1 * self.get_energy_eff(e)
+            return -1 * self.eval_experiment(e)
         
         x0 = DataArray(
             data=[exp.T, exp.N_f0, exp.P_f, exp.N_s0, exp.P_s],
@@ -177,21 +221,24 @@ class ProcessModel:
                 del d[var_name]
 
     
-if __name__ == "main":
+if __name__ == "__main__":
     e = Experiment(T=900, 
                     N_f0=1e-4, x_f0="H2O:1", P_f=101325,
-                    N_s0=1e-4, x_s0="CH4:1", P_s=101325)
+                    N_s0=1e-4, x_s0="CH4:1", P_s=101325,
+                    A_mem=10, sigma=5.84, L=250)
     proc_model = ProcessModel()
-    m = Metrics()    
+    m = Metrics()
     lb = DataArray(
-        data=[800, e.A_mem * 1e-4 * 1e-2, 101325*0.9, e.A_mem * 1e-4 * 1e-2, 101325*0.9],
+        data=[600, e.A_mem * 1e-4 * 1e-3, 101325*0.1, e.A_mem * 1e-4 * 1e-3, 101325*0.1],
         coords=XA_COORDS)
     ub = DataArray(
-        data=[1000, e.A_mem * 1e-4 * 100, 101325*2, e.A_mem * 1e-4 * 100, 101325*2],
+        data=[1500, e.A_mem * 1e-4 * 1000, 101325*10, e.A_mem * 1e-4 * 1000, 101325*10],
         coords=XA_COORDS)
-    print("+++++++++++++++++ RUN _ ++++++++++++++++++")
+    print("+++++++++++++++++ RUN Input Origin sigma=5.84 ++++++++++++++++++")
     print("Starting optimizer...")
     res = proc_model.optimize_experiment(e, Bounds(lb, ub))
     print(res)
-    
+    set_opt_x(e, DataArray(data=res.x, coords=XA_COORDS))
+    e.print_analysis()
+    print(f'Optimized energy eff.: {proc_model.get_energy_eff(e):.1%}')
     print("+++++++++++++++++ DONE ++++++++++++++++++")
