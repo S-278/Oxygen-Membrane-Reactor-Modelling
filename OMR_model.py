@@ -130,13 +130,13 @@ class Experiment:
         """
         col_template = '{: <15}{: >20}'; col_sep = ', '
         print(f'{"Reactor properties":~^50}')
-        print(col_template.format('Temperature:', str(self.T) + ' °C'))
+        print(col_template.format('Temperature:', f'{self.T:.0f} °C'))
         print(col_template.format('Feed:', f'{self.N_f0:.2e}' + ' mol/min'), 
               col_sep, '{: >15}'.format(self.x_f0), sep='')
         print(col_template.format('Sweep:', f'{self.N_s0:.2e}' + ' mol/min'), 
               col_sep, '{: >15}'.format(self.x_s0), sep='')
-        print(col_template.format('Feed pressure:', str(self.P_f) + ' Pa'))
-        print(col_template.format('Sweep pressure:', str(self.P_s) + ' Pa'))
+        print(col_template.format('Feed pressure:', f'{self.P_f:.0f} Pa'))
+        print(col_template.format('Sweep pressure:', f'{self.P_s:.0f} Pa'))
         print(f'{"Membrane properties":~^50}')
         col_template = '{: <15}{: >10}'
         print(col_template.format('Area:', str(self.A_mem) + ' cm²'), 
