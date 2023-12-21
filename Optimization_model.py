@@ -160,16 +160,14 @@ class ProcessModel:
         ext_elec_cons = -1*elec_balance if elec_balance < 0 else 0*u.W
         
         # Inflowing HHV
-        HHV_in_CH4 = exp.N_s0 * u.mol/u.min * CH4_HHV
+        HHV_in_CH4 = exp.N_s0 * u.mol/u.min * exp.CH4_conv * CH4_HHV
         HHV_in_tot = HHV_in_CH4
         
         # Outflowing HHV
         HHV_out_H2_f = exp.f_H2_prod * u.mol/u.min * H2_HHV
         HHV_out_H2_s = exp.s_H2_prod * u.mol/u.min * H2_HHV
         HHV_out_CO = exp.s_CO_prod * u.mol/u.min * CO_HHV
-        HHV_out_CH4 = exp.N_s0 * u.mol/u.min * (1-exp.CH4_conv) * CH4_HHV
-        HHV_out_tot = HHV_out_H2_f + HHV_out_H2_s + HHV_out_CO  \
-                        + HHV_out_CH4
+        HHV_out_tot = HHV_out_H2_f + HHV_out_H2_s + HHV_out_CO
         
         P_in = ext_heat_cons + ext_elec_cons + HHV_in_tot; P_in.ito("W")
         P_out = HHV_out_tot; P_out.ito("W")
