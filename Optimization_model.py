@@ -151,7 +151,7 @@ class ProcessModel:
                              * self.boil_RT / self.PUMPING_EFF
                              
         CH4_pump_cons = exp.N_s0 * u.mol/u.min * (                                                  \
-                              (exp.P_s * u.Pa / self.AMBIENT_P) * self.CH4_spec_grav_energy         \
+                              self.CH4_spec_grav_energy                                             \
                               + (exp.P_s * u.Pa - self.AMBIENT_P)/self.AMBIENT_P * self.ambient_RT  \
                         ) / self.PUMPING_EFF
             
