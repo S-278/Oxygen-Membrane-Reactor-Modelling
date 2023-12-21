@@ -19,7 +19,7 @@ GAS_CONST = 8.314 * u.J/(u.mol * u.degK)
 GRAV_ACCEL = 9.81 * u.m/(u.s**2)
 CH4_M_Molar = 16.04 * u.g/u.mol
 H2O_M_Molar =  18.015 * u.g/u.mol
-CH4_HHV = 55384 * u.kJ/u.kg * 16.04 * u.g/u.mol
+CH4_HHV = 55384 * u.kJ/u.kg * CH4_M_Molar
 CO_HHV = 10160 * u.kJ/u.kg * 28.01 * u.g/u.mol
 H2_HHV = 142081 * u.kJ/u.kg * 2.016 * u.g/u.mol
 H2Og_Cp_SLOPE = (0.000665666 * u.kJ/(u.kg*u.degK**2) * H2O_M_Molar)\
@@ -85,11 +85,10 @@ class ProcessModel:
         self.RANKINE_EFF = 0.4
         self.PUMPING_HEIGHT = 100 * u.m
         
-        self.ambient_spec_vol = GAS_CONST * self.AMBIENT_T.to("degK") / self.AMBIENT_P
         self.ambient_RT = GAS_CONST * self.AMBIENT_T.to("degK")
+        self.boil_RT = GAS_CONST * u.Quantity(100, u.degC).to("degK")
         self.CH4_spec_grav_energy = CH4_M_Molar * GRAV_ACCEL * self.PUMPING_HEIGHT
-        self.H2Og_spec_grav_energy = H2O_M_Molar * GRAV_ACCEL * self.PUMPING_HEIGHT
-        self.H2Ol_spec_pump_cons = H2O_M_Molar * GRAV_ACCEL * self.PUMPING_HEIGHT
+        self.H2Ol_spec_grav_energy = H2O_M_Molar * GRAV_ACCEL * self.PUMPING_HEIGHT
         
         self.SYNGAS_RATIO_TARGET = 2/1
         self.SYNGAS_RATIO_TOL = 0.5
@@ -142,15 +141,19 @@ class ProcessModel:
         # Input water purification
         H2O_pur_cons = exp.N_f0 * u.mol/u.min * self.H2O_CYCLE_LOSS * self.H2O_PURIF_CONS 
         # Input pumping
-        H2Ol_pump_cons = exp.N_f0 * u.mol/u.min * self.H2Ol_spec_pump_cons
-        deltaP_f = exp.P_f * u.Pa - self.AMBIENT_P
-        if deltaP_f < 0: deltaP_f = 0
-        H2Og_pump_cons = exp.N_f0 * u.mol/u.min * self.ambient_spec_vol *                                        \
-                        ((self.AMBIENT_P + deltaP_f)/self.ambient_RT * self.H2Og_spec_grav_energy + deltaP_f)
-        deltaP_s = exp.P_s * u.Pa - self.AMBIENT_P
-        if deltaP_s < 0: deltaP_s = 0
-        CH4_pump_cons = exp.N_s0 * u.mol/u.min * self.ambient_spec_vol *                                        \
-                        ((self.AMBIENT_P + deltaP_s)/self.ambient_RT * self.CH4_spec_grav_energy + deltaP_s)
+        H2Ol_pump_cons = exp.N_f0 * u.mol/u.min * self.H2Ol_spec_grav_energy / self.PUMPING_EFF
+        
+        H2Og_pump_cons = 0 * u.W
+        if exp.P_f * u.Pa > self.AMBIENT_P:
+            H2Og_pump_cons = exp.N_f0 * u.mol/u.min                             \
+                             * (exp.P_f*u.Pa - self.AMBIENT_P)/self.AMBIENT_P   \
+                             * self.boil_RT / self.PUMPING_EFF
+                             
+        CH4_pump_cons = exp.N_s0 * u.mol/u.min * (                                                  \
+                              (exp.P_s * u.Pa / self.AMBIENT_P) * self.CH4_spec_grav_energy         \
+                              + (exp.P_s * u.Pa - self.AMBIENT_P)/self.AMBIENT_P * self.ambient_RT  \
+                        ) / self.PUMPING_EFF
+            
         # Condenser operation
         H2_condenser_cons =                             \
             exp.N_f * u.mol/u.min                       \
