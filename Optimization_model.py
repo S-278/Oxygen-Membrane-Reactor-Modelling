@@ -149,9 +149,9 @@ class ProcessModel:
         # CO2 separation
         CO2_sep_elec_cons = exp.s_CO2_prod * u.mol/u.min * self.CO2_SEP_E_CONS
 
-        elec_consumed = H2O_pur_cons                                \
-                        + H2Ol_pump_cons + CH4_pump_cons             \
-                        + H2_condenser_cons + CH4_condenser_cons    \
+        elec_consumed = H2O_pur_cons                                        \
+                        + H2Ol_pump_cons + CH4_pump_cons + H2Og_pump_cons   \
+                        + H2_condenser_cons + CH4_condenser_cons            \
                         + CO2_sep_elec_cons
 
         # Subtract recovered electricity:
