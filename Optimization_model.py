@@ -84,6 +84,7 @@ class ProcessModel:
         self.CO2_SEP_H_CONS = 132 * u.kJ/u.mol
         self.RANKINE_EFF = 0.4
         self.PUMPING_HEIGHT = 100 * u.m
+        self.PUMPING_EFF = 0.7
         
         self.ambient_RT = GAS_CONST * self.AMBIENT_T.to("degK")
         self.boil_RT = GAS_CONST * u.Quantity(100, u.degC).to("degK")
@@ -158,12 +159,14 @@ class ProcessModel:
         H2_condenser_cons =                             \
             exp.N_f * u.mol/u.min                       \
             * self.CONDENSER_CW_FLOW_RATIO              \
-            * self.CONDENSER_CW_PUMPING_CONS
+            * self.CONDENSER_CW_PUMPING_CONS            \
+            / self.PUMPING_EFF
         CH4_condenser_cons=                                                         \
             exp.N_s * u.mol/u.min                                                   \
             * (exp.x_s[exp.x_comp.index("CH4")] + exp.x_s[exp.x_comp.index("CO")])  \
             * self.CONDENSER_CW_FLOW_RATIO                                          \
-            * self.CONDENSER_CW_PUMPING_CONS
+            * self.CONDENSER_CW_PUMPING_CONS                                        \
+            / self.PUMPING_EFF
         # CO2 separation
         CO2_sep_elec_cons = exp.s_CO2_prod * u.mol/u.min * self.CO2_SEP_E_CONS
 
