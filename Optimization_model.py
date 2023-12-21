@@ -22,6 +22,14 @@ H2O_M_Molar =  18.015 * u.g/u.mol
 CH4_HHV = 55384 * u.kJ/u.kg * 16.04 * u.g/u.mol
 CO_HHV = 10160 * u.kJ/u.kg * 28.01 * u.g/u.mol
 H2_HHV = 142081 * u.kJ/u.kg * 2.016 * u.g/u.mol
+H2Og_Cp_SLOPE = (0.000665666 * u.kJ/(u.kg*u.degK**2) * H2O_M_Molar)\
+                .to(u.J/(u.mol*u.degK**2))
+H2Og_Cp_INT = (1.62065 * u.kJ/(u.kg*u.degK) * H2O_M_Molar)\
+              .to(u.J/(u.mol*u.degK))
+CH4_Cp_SLOPE = (0.00333164 * u.kJ/(u.kg*u.degK**2) * CH4_M_Molar)\
+               .to(u.J/(u.mol*u.degK**2))
+CH4_Cp_INT = (1.2229 * u.kJ/(u.kg*u.degK) * CH4_M_Molar)\
+             .to(u.J/(u.mol*u.degK))
 
 glb_cb_ct = 0
 glb_opt_intermediates = numpy.zeros((2000))
@@ -66,8 +74,6 @@ class ProcessModel:
         self.H2O_CYCLE_LOSS = 0.10
         self.H2O_PURIF_CONS = 4.52e-5 * u.kWh/u.mol
         self.H2O_BOILING_CONS = 76.6 * u.kJ/u.mol
-        self.H2O_PREHEAT_CONS = 33.6 * u.J/(u.mol * u.delta_degC)
-        self.CH4_PREHEAT_CONS = 35.7 * u.J/(u.mol * u.delta_degC)
         self.AMBIENT_T = u.Quantity(25, u.degC)
         self.AMBIENT_P = 101325 * u.Pa
         self.HX_EFF = 0.9
@@ -100,16 +106,25 @@ class ProcessModel:
             (1 + self.REACTOR_HEAT_LOSS/(1-self.REACTOR_HEAT_LOSS))
         # Input water boiling
         H2O_boil_cons = exp.N_f0 * u.mol/u.min * self.H2O_BOILING_CONS
+        # Preheating:
+        exp_T = u.Quantity(exp.T, u.degC).to(u.degK)
         # Input water preheating
-        H2O_preheat_cons =                                                  \
-            exp.N_f0 * u.mol/u.min                                          \
-            * (u.Quantity(exp.T,u.degC) - u.Quantity(100,u.degC))           \
-            * (1-self.HX_EFF) * self.H2O_PREHEAT_CONS
+        boil_T = u.Quantity(100,u.degC).to(u.degK)
+        H2O_preheat_cons =                                      \
+            exp.N_f0 * u.mol/u.min * (                          \
+                  H2Og_Cp_SLOPE/2 * (exp_T**2 - boil_T**2)      \
+                  + H2Og_Cp_INT * (exp_T - boil_T)              \
+            ) * (1-self.HX_EFF)
+        del boil_T
         # Input methane preheating
-        CH4_preheat_cons =                                                  \
-            exp.N_s0 * u.mol/u.min                                          \
-            * (u.Quantity(exp.T,u.degC) - self.AMBIENT_T)                   \
-            * (1-self.HX_EFF) * self.CH4_PREHEAT_CONS
+        amb_T = self.AMBIENT_T.to(u.degK)
+        CH4_preheat_cons =                                \
+            exp.N_s0 * u.mol/u.min * (                    \
+                  CH4_Cp_SLOPE/2 * (exp_T**2 - amb_T**2)  \
+                  + CH4_Cp_INT * (exp_T - amb_T)          \
+            ) * (1-self.HX_EFF)
+        del amb_T
+        del exp_T
         # CO2 separation
         CO2_sep_heat_cons = exp.s_CO2_prod * u.mol/u.min * self.CO2_SEP_H_CONS
         
