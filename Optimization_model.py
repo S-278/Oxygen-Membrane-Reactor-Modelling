@@ -67,7 +67,26 @@ def set_opt_x(exp : Experiment, xa : DataArray):
     exp.P_s=xa.sel(param="P_s").item()
         
 class Metrics(dict):
-    pass
+    
+    def __str__(self):
+        col_template = '{: <20}{: >20}\n'
+        endl_template = '{: <5}{: >35}\n'
+        ret = ''
+        ret += f'{"External heat consumption":~^50}\n'
+        ret += col_template.format('Reactor:', f'{self["reactor_heat_supply"].to_compact():.2f}')
+        ret += col_template.format('H2O boiling:', f'{self["H2O_boil_cons"].to_compact():.2f}')
+        ret += '{: <20}{: >20} {: <30}\n'.format('Preheating:', f'{self["H2O_preheat_cons"].to_compact()+self["CH4_preheat_cons"].to_compact():.2f}', f'(F:{self["H2O_preheat_cons"].to_compact():.2f}/S:{self["CH4_preheat_cons"].to_compact():.2f})')
+        ret += col_template.format('CO2 sep:', f'{self["CO2_sep_heat_cons"].to_compact():.2f}')
+        ret += endl_template.format('TOTAL', f'{self["ext_heat_cons"].to_compact():.2f}')
+        ret += f'{"Electricity consumption":~^50}\n'
+        ret += col_template.format('H2O purification:', f'{self["H2O_pur_cons"].to_compact():.2f}')
+        ret += col_template.format('F pumping:', f'{self["H2Ol_pump_cons"].to_compact()+self["H2Og_pump_cons"].to_compact():.2f}')
+        ret += col_template.format('S pumping:', f'{self["CH4_pump_cons"].to_compact():.2f}')
+        ret += col_template.format('Condensers:', f'{self["H2_condenser_cons"].to_compact()+self["CH4_condenser_cons"].to_compact():.2f}')
+        ret += col_template.format('CO2 sep:', f'{self["CO2_sep_elec_cons"].to_compact():.2f}')
+        ret += endl_template.format('TOTAL', f'{self["elec_consumed"].to_compact():.2f}')
+        ret += endl_template.format('BAL', f'{self["elec_balance"].to_compact():.2f}')
+        return ret
 
 class ProcessModel:
     def __init__(self):
