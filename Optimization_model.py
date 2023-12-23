@@ -173,6 +173,7 @@ class ProcessModel:
                               self.CH4_spec_grav_energy                                             \
                               + (exp.P_s * u.Pa - self.AMBIENT_P)/self.AMBIENT_P * self.ambient_RT  \
                         ) / self.PUMPING_EFF
+        if CH4_pump_cons < 0: CH4_pump_cons.magnitude = 0
             
         # Condenser operation
         H2_condenser_cons =                             \
