@@ -313,6 +313,18 @@ class Experiment:
             ret_arr[arr_point] = Experiment(**init_dict)
             
         return ret_arr
+    
+class Experiment_T_dep_sigma(Experiment):
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+    def __T_to_sigma_map(cls, T: float) -> float:
+        return 151.9*math.exp(-76/(8.3e-3*(T+273.15)))
+        
+    sigma = property(
+        fget=lambda self:self.__T_to_sigma_map(self.T),
+        fset=None)
 
 def Simulate_OMR(T, N_f0, x_f0, P_f, N_s0, x_s0, P_s, A_mem, sigma, L, Lc):
     """
