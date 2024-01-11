@@ -8,6 +8,7 @@ import cantera as ct
 import numpy as np
 from scipy.optimize import fsolve
 import copy
+import math
 #Load GRI-Mech 3.0 mechanism
 sol1 = ct.Solution('gri30.yaml')
 sol2 = ct.Solution('gri30.yaml')
@@ -263,7 +264,22 @@ class Experiment:
         print(col_template.format('Sweep O2 conversion:', f'{self.O2_conv:.0%}'))
         print(col_template.format('Reaction heat:', f'{self.dH:.2f} W'))
         print(col_template.format('Oxygen flux:', f'{self.N_o2:.2e} mol/min'))
+        
+    def __print_stream(self, stream_fractions, stream_flow):
+        x_sort_indices = np.flip(np.argsort(stream_fractions))[0:9]
+        col_template = '{: <7}{: >20}{: >10}'
+        for idx in x_sort_indices:
+            print(col_template.format(
+                self.x_comp[idx] + ':', 
+                f'{stream_fractions[idx]*stream_flow:.2e} mol/min', 
+                f'({stream_fractions[idx]:.1%})'))
+
+    def print_feed_output(self):
+        self.__print_stream(self.x_f, self.N_f)
             
+    def print_sweep_output(self):
+        self.__print_stream(self.x_s, self.N_s)
+
     def grid(**kwargs):
         """Generate meshgrid of Experiments
         
