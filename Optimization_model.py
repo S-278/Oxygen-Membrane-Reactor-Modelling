@@ -16,6 +16,10 @@ import csv
 from abc import ABC, abstractmethod
 
 RUN_ID = "test"
+PROFILE_ID = None
+if PROFILE_ID != None:
+    import cProfile
+    import pstats
 
 XA_COORDS =  [("param", ['T', 'N_f0', 'P_f', 'N_s0', 'P_s'])]
 
@@ -305,11 +309,18 @@ if __name__ == "__main__":
         data=[1500, e.A_mem * 1e-4 * 1000, 101325*10, e.A_mem * 1e-4 * 1000, 101325*10],
         coords=XA_COORDS)
     print("+++++++++++++++++ RUN " + RUN_ID + " ++++++++++++++++++")
+    if PROFILE_ID != None:
+        print('Profiling ' + PROFILE_ID)
     print("Starting optimizer...")
-    res = optimizer.optimize(e, Bounds(lb, ub), DefaultPM.eval_experiment)
-    print(res)
-    set_opt_x(e, DataArray(data=res.x, coords=XA_COORDS))
-    e.print_analysis()
-    print(f'Optimized energy eff.: {DefaultPM.get_energy_eff(e, metrics=m):.1%}')
-    print(m)
+    if PROFILE_ID != None:
+        cProfile.run('optimizer.optimize(e, Bounds(lb, ub), DefaultPM.eval_experiment)', PROFILE_ID + '_profile')
+        stats = pstats.Stats(PROFILE_ID + '_profile')
+        stats.strip_dirs().sort_stats('cumtime').print_stats()
+    else:
+        res = optimizer.optimize(e, Bounds(lb, ub), DefaultPM.eval_experiment)
+        print(res)
+        set_opt_x(e, DataArray(data=res.x, coords=XA_COORDS))
+        e.print_analysis()
+        print(f'Optimized energy eff.: {DefaultPM.get_energy_eff(e, metrics=m):.1%}')
+        print(m)
     print("+++++++++++++++++ DONE ++++++++++++++++++")
