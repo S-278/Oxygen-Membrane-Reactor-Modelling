@@ -13,10 +13,9 @@ import pint; u=pint.UnitRegistry()
 import copy
 from math import tanh
 import csv
+from abc import ABC, abstractmethod
 
-RUN_ID = ""
-
-TRACK_OPT_PROGRESS = True
+RUN_ID = "test"
 
 XA_COORDS =  [("param", ['T', 'N_f0', 'P_f', 'N_s0', 'P_s'])]
 
@@ -35,42 +34,7 @@ CH4_Cp_SLOPE = (0.00333164 * u.kJ/(u.kg*u.degK**2) * CH4_M_Molar)\
                .to(u.J/(u.mol*u.degK**2))
 CH4_Cp_INT = (1.2229 * u.kJ/(u.kg*u.degK) * CH4_M_Molar)\
              .to(u.J/(u.mol*u.degK))
-
-glb_cb_ct = 0
-glb_prog_file = None
-glb_file_reader = None
-glb_file_writer = None
-
-def optimize_wrapper(x0 : DataArray, bd : Bounds, f : callable) -> OptimizeResult:
-    global glb_prog_file
-    global glb_file_writer
-    
-    if TRACK_OPT_PROGRESS:
-        glb_prog_file = open(RUN_ID + '_progress.csv', 'x+', newline='')
-        glb_file_writer = csv.DictWriter(glb_prog_file, 
-                                         fieldnames=['T', 'N_f0', 'P_f', 'N_s0', 'P_s', 'eff'])
-        glb_file_writer.writeheader()
-    retval = scipy.optimize.direct(f, bd, 
-                                 eps=1e-2, locally_biased=False, 
-                                 len_tol=1e-4, vol_tol=(1/5000)**5,
-                                 maxfun=5000*5, maxiter=20000
-                                 ,callback=optimize_cb
-                                 )
-    if TRACK_OPT_PROGRESS:
-        glb_prog_file.close()
-    return retval
-
-def optimize_cb(xk):
-    global glb_cb_ct
-    global glb_prog_file
-    global glb_file_writer
-
-    glb_cb_ct += 1
-    if glb_cb_ct % 100 == 0:
-        print("CB invocation:", glb_cb_ct)
-    if TRACK_OPT_PROGRESS:
-        glb_file_writer.writerow({param:val for (param,val) in zip(XA_COORDS[0][1], xk)})
-        
+             
 def extract_opt_x(exp : Experiment) -> DataArray:
     ret = DataArray(coords=XA_COORDS)
     ret.loc[dict(param="T")] = exp.T
@@ -97,7 +61,8 @@ def syngas_ratio_filter(ratio: float) -> float:
                   tanh(SYNGAS_RATIO_FILTER_STR * (ratio - halfpt_hi)) +    \
                   tanh(SYNGAS_RATIO_FILTER_STR * (-1*ratio + halfpt_lo))   \
                  ) + 0
-        
+
+             
 class Metrics(dict):
     
     def __str__(self):
@@ -119,39 +84,52 @@ class Metrics(dict):
         ret += endl_template.format('TOTAL', f'{self["elec_consumed"].to_compact():.2f}')
         ret += endl_template.format('BAL', f'{self["elec_balance"].to_compact():.2f}')
         return ret
-
-class ProcessModel:
-    def __init__(self):
-        self.H2O_CYCLE_LOSS = 0.10
-        self.H2O_PURIF_CONS = 4.52e-5 * u.kWh/u.mol
-        self.H2O_BOILING_CONS = 76.6 * u.kJ/u.mol
-        self.AMBIENT_T = u.Quantity(25, u.degC)
-        self.AMBIENT_P = 101325 * u.Pa
-        self.HX_EFF = 0.9
-        self.REACTOR_HEAT_LOSS = 0.10
-        self.CONDENSER_CW_FLOW_RATIO = 2/1
-        self.CONDENSER_CW_PUMPING_CONS = 0.7e-6 * u.kWh/u.mol
-        self.CO2_SEP_E_CONS = 9 * u.kJ/u.mol
-        self.CO2_SEP_H_CONS = 132 * u.kJ/u.mol
-        self.RANKINE_EFF = 0.4
-        self.PUMPING_HEIGHT = 100 * u.m
-        self.PUMPING_EFF = 0.7
-        
-        self.ambient_RT = GAS_CONST * self.AMBIENT_T.to("degK")
-        self.boil_RT = GAS_CONST * u.Quantity(100, u.degC).to("degK")
-        self.CH4_spec_grav_energy = CH4_M_Molar * GRAV_ACCEL * self.PUMPING_HEIGHT
-        self.H2Ol_spec_grav_energy = H2O_M_Molar * GRAV_ACCEL * self.PUMPING_HEIGHT
     
-    def get_energy_eff(self, exp: Experiment, metrics : Metrics = None) -> float:  
-        funct_params = copy.deepcopy(locals()); ProcessModel.__remove_builtins(funct_params)
+    def remove_builtins(d : dict):
+        for var_name in list(d):
+            if (var_name.startswith('__') and var_name.endswith('__')): 
+                del d[var_name]
+
+            
+class ProcessModel(ABC):
+      
+    @classmethod
+    @abstractmethod
+    def eval_experiment(cls, exp: Experiment) -> float:
+        ...
+            
+class DefaultPM(ProcessModel):
+    H2O_CYCLE_LOSS = 0.10
+    H2O_PURIF_CONS = 4.52e-5 * u.kWh/u.mol
+    H2O_BOILING_CONS = 76.6 * u.kJ/u.mol
+    AMBIENT_T = u.Quantity(25, u.degC)
+    AMBIENT_P = 101325 * u.Pa
+    HX_EFF = 0.9
+    REACTOR_HEAT_LOSS = 0.10
+    CONDENSER_CW_FLOW_RATIO = 2/1
+    CONDENSER_CW_PUMPING_CONS = 0.7e-6 * u.kWh/u.mol
+    CO2_SEP_E_CONS = 9 * u.kJ/u.mol
+    CO2_SEP_H_CONS = 132 * u.kJ/u.mol
+    RANKINE_EFF = 0.4
+    PUMPING_HEIGHT = 100 * u.m
+    PUMPING_EFF = 0.7
+    
+    ambient_RT = GAS_CONST * AMBIENT_T.to("degK")
+    boil_RT = GAS_CONST * u.Quantity(100, u.degC).to("degK")
+    CH4_spec_grav_energy = CH4_M_Molar * GRAV_ACCEL * PUMPING_HEIGHT
+    H2Ol_spec_grav_energy = H2O_M_Molar * GRAV_ACCEL * PUMPING_HEIGHT
+    
+    @classmethod
+    def get_energy_eff(cls, exp: Experiment, metrics : Metrics = None) -> float:  
+        funct_params = copy.deepcopy(locals()); Metrics.remove_builtins(funct_params)
 
         # External heat input:
         # Reactor heat supply (reaction heat + heat loss)
         reactor_heat_supply =                                                \
             exp.dH * u.W *                                                   \
-            (1 + self.REACTOR_HEAT_LOSS/(1-self.REACTOR_HEAT_LOSS))
+            (1 + cls.REACTOR_HEAT_LOSS/(1-cls.REACTOR_HEAT_LOSS))
         # Input water boiling
-        H2O_boil_cons = exp.N_f0 * u.mol/u.min * self.H2O_BOILING_CONS
+        H2O_boil_cons = exp.N_f0 * u.mol/u.min * cls.H2O_BOILING_CONS
         # Preheating:
         exp_T = u.Quantity(exp.T, u.degC).to(u.degK)
         # Input water preheating
@@ -160,19 +138,19 @@ class ProcessModel:
             exp.N_f0 * u.mol/u.min * (                          \
                   H2Og_Cp_SLOPE/2 * (exp_T**2 - boil_T**2)      \
                   + H2Og_Cp_INT * (exp_T - boil_T)              \
-            ) * (1-self.HX_EFF)
+            ) * (1-cls.HX_EFF)
         del boil_T
         # Input methane preheating
-        amb_T = self.AMBIENT_T.to(u.degK)
+        amb_T = cls.AMBIENT_T.to(u.degK)
         CH4_preheat_cons =                                \
             exp.N_s0 * u.mol/u.min * (                    \
                   CH4_Cp_SLOPE/2 * (exp_T**2 - amb_T**2)  \
                   + CH4_Cp_INT * (exp_T - amb_T)          \
-            ) * (1-self.HX_EFF)
+            ) * (1-cls.HX_EFF)
         del amb_T
         del exp_T
         # CO2 separation
-        CO2_sep_heat_cons = exp.s_CO2_prod * u.mol/u.min * self.CO2_SEP_H_CONS
+        CO2_sep_heat_cons = exp.s_CO2_prod * u.mol/u.min * cls.CO2_SEP_H_CONS
         
         ext_heat_cons = reactor_heat_supply                       \
                             + H2O_boil_cons + H2O_preheat_cons    \
@@ -182,40 +160,40 @@ class ProcessModel:
         # External electricity input:
         # Calculate how much electricity 
         # can be recovered from waste heat.
-        waste_heat_recovered = exp.dH * u.W / ( (1-self.REACTOR_HEAT_LOSS)/self.REACTOR_HEAT_LOSS )
-        elec_produced = waste_heat_recovered * self.RANKINE_EFF
+        waste_heat_recovered = exp.dH * u.W / ( (1-cls.REACTOR_HEAT_LOSS)/cls.REACTOR_HEAT_LOSS )
+        elec_produced = waste_heat_recovered * cls.RANKINE_EFF
         # Calculate total electricity consumption:
         # Input water purification
-        H2O_pur_cons = exp.N_f0 * u.mol/u.min * self.H2O_CYCLE_LOSS * self.H2O_PURIF_CONS 
+        H2O_pur_cons = exp.N_f0 * u.mol/u.min * cls.H2O_CYCLE_LOSS * cls.H2O_PURIF_CONS 
         # Input pumping
-        H2Ol_pump_cons = exp.N_f0 * u.mol/u.min * self.H2Ol_spec_grav_energy / self.PUMPING_EFF
+        H2Ol_pump_cons = exp.N_f0 * u.mol/u.min * cls.H2Ol_spec_grav_energy / cls.PUMPING_EFF
         
         H2Og_pump_cons = 0 * u.W
-        if exp.P_f * u.Pa > self.AMBIENT_P:
-            H2Og_pump_cons = exp.N_f0 * u.mol/u.min                             \
-                             * (exp.P_f*u.Pa - self.AMBIENT_P)/self.AMBIENT_P   \
-                             * self.boil_RT / self.PUMPING_EFF
+        if exp.P_f * u.Pa > cls.AMBIENT_P:
+            H2Og_pump_cons = exp.N_f0 * u.mol/u.min                           \
+                             * (exp.P_f*u.Pa - cls.AMBIENT_P)/cls.AMBIENT_P   \
+                             * cls.boil_RT / cls.PUMPING_EFF
                              
         CH4_pump_cons = exp.N_s0 * u.mol/u.min * (                                                  \
-                              self.CH4_spec_grav_energy                                             \
-                              + (exp.P_s * u.Pa - self.AMBIENT_P)/self.AMBIENT_P * self.ambient_RT  \
-                        ) / self.PUMPING_EFF
+                              cls.CH4_spec_grav_energy                                              \
+                              + (exp.P_s * u.Pa - cls.AMBIENT_P)/cls.AMBIENT_P * cls.ambient_RT     \
+                        ) / cls.PUMPING_EFF
         if CH4_pump_cons < 0: CH4_pump_cons = 0 * u.W
             
         # Condenser operation
         H2_condenser_cons =                             \
             exp.N_f * u.mol/u.min                       \
-            * self.CONDENSER_CW_FLOW_RATIO              \
-            * self.CONDENSER_CW_PUMPING_CONS            \
-            / self.PUMPING_EFF
+            * cls.CONDENSER_CW_FLOW_RATIO               \
+            * cls.CONDENSER_CW_PUMPING_CONS             \
+            / cls.PUMPING_EFF
         CH4_condenser_cons=                                                         \
             exp.N_s * u.mol/u.min                                                   \
             * (exp.x_s[exp.x_comp.index("CH4")] + exp.x_s[exp.x_comp.index("CO")])  \
-            * self.CONDENSER_CW_FLOW_RATIO                                          \
-            * self.CONDENSER_CW_PUMPING_CONS                                        \
-            / self.PUMPING_EFF
+            * cls.CONDENSER_CW_FLOW_RATIO                                           \
+            * cls.CONDENSER_CW_PUMPING_CONS                                         \
+            / cls.PUMPING_EFF
         # CO2 separation
-        CO2_sep_elec_cons = exp.s_CO2_prod * u.mol/u.min * self.CO2_SEP_E_CONS
+        CO2_sep_elec_cons = exp.s_CO2_prod * u.mol/u.min * cls.CO2_SEP_E_CONS
 
         elec_consumed = H2O_pur_cons                                        \
                         + H2Ol_pump_cons + CH4_pump_cons + H2Og_pump_cons   \
@@ -249,42 +227,76 @@ class ProcessModel:
             for quantity in metrics_to_add.values():
                 try: quantity.ito("W")
                 except pint.DimensionalityError: pass
-                # except AttributeError: print(quantity)
             metrics.update(metrics_to_add)
             
         return efficiency_tot.magnitude
     
-    def eval_experiment(self, exp: Experiment) -> float:
-        return self.get_energy_eff(exp) * syngas_ratio_filter(exp.s_H2_prod/exp.s_CO_prod)
+    @classmethod
+    def eval_experiment(cls, exp: Experiment) -> float:
+        return cls.get_energy_eff(exp) * syngas_ratio_filter(exp.s_H2_prod/exp.s_CO_prod)
+             
+class Optimizer(ABC):
     
-    def optimize_experiment(self, exp: Experiment, bd: Bounds) -> OptimizeResult:
+    def __init__(self, run_id='test', track_progress=False):
+        self.run_id=run_id
+        self.track_progress = track_progress
+        
+    @abstractmethod
+    def optimize(self, init_guess: Experiment, bd: Bounds, eval_funct: callable) -> OptimizeResult:
+        ...
+        
+class DIRECT_Optimizer(Optimizer):
+    
+    def __init__(self, run_id='test', track_progress=False):
+        super().__init__(run_id, track_progress)
+        self.cb_count = 0
+        
+    def optimize(self, init_exp: Experiment, bd: Bounds, eval_funct: callable) -> OptimizeResult:
         
         def objective_f(x : ndarray) -> float:
             xa = DataArray(data=x, coords=XA_COORDS)
-            e = Experiment(x_f0=exp.x_f0, x_s0=exp.x_s0,
-                           A_mem=exp.A_mem, sigma=exp.sigma, L=exp.L, Lc=exp.Lc)
+            e = Experiment(x_f0=init_exp.x_f0, x_s0=init_exp.x_s0,
+                           A_mem=init_exp.A_mem, sigma=init_exp.sigma, L=init_exp.L, Lc=init_exp.Lc)
             set_opt_x(e, xa)
             e.run()
             e.analyze()
-            return -1 * self.eval_experiment(e)
+            return -1 * eval_funct(e)
         
-        x0 = DataArray(
-            data=[exp.T, exp.N_f0, exp.P_f, exp.N_s0, exp.P_s],
-            coords=XA_COORDS)
-        return optimize_wrapper(x0, bd, objective_f)
+        # x0 = DataArray(
+        #     data=[init_exp.T, init_exp.N_f0, init_exp.P_f, init_exp.N_s0, init_exp.P_s],
+        #     coords=XA_COORDS)
         
-    def __remove_builtins(d : dict):
-        for var_name in list(d):
-            if (var_name.startswith('__') and var_name.endswith('__')): 
-                del d[var_name]
+        if self.track_progress:
+            self.prog_file = open(self.run_id + '_progress.csv', 'w+', newline='')
+            self.file_writer = csv.DictWriter(self.prog_file, 
+                                             fieldnames=XA_COORDS[0][1] + ['eff'])
+            self.file_writer.writeheader()
+            
+        retval = scipy.optimize.direct(objective_f, bd, 
+                                       eps=5e-3, locally_biased=False, 
+                                       len_tol=1e-4, vol_tol=(1/5000)**5,
+                                       maxfun=10000*5, maxiter=20000,
+                                       callback=self.optimizer_cb)
+        
+        if self.track_progress:
+            self.prog_file.close()
+            
+        return retval
 
-    
+    def optimizer_cb(self, xk):
+        self.cb_count += 1
+        if self.cb_count % 100 == 0:
+            print("CB invocation:", self.cb_count)
+        if self.track_progress:
+            self.file_writer.writerow({param:val for (param,val) in zip(XA_COORDS[0][1], xk)})
+
+
 if __name__ == "__main__":
     e = Experiment(T=900, 
                     N_f0=1e-4, x_f0="H2O:1", P_f=101325,
                     N_s0=1e-4, x_s0="CH4:1", P_s=101325,
-                    A_mem=10, sigma=0.56, L=700)
-    pm = ProcessModel()
+                    A_mem=10, sigma=1.93, L=700)
+    optimizer = DIRECT_Optimizer(run_id=RUN_ID, track_progress=True)
     m = Metrics()
     lb = DataArray(
         data=[600, e.A_mem * 1e-4 * 1e-3, 101325*0.1, e.A_mem * 1e-4 * 1e-3, 101325*0.1],
@@ -294,10 +306,10 @@ if __name__ == "__main__":
         coords=XA_COORDS)
     print("+++++++++++++++++ RUN " + RUN_ID + " ++++++++++++++++++")
     print("Starting optimizer...")
-    res = pm.optimize_experiment(e, Bounds(lb, ub))
+    res = optimizer.optimize(e, Bounds(lb, ub), DefaultPM.eval_experiment)
     print(res)
     set_opt_x(e, DataArray(data=res.x, coords=XA_COORDS))
     e.print_analysis()
-    print(f'Optimized energy eff.: {pm.get_energy_eff(e, metrics=m):.1%}')
+    print(f'Optimized energy eff.: {DefaultPM.get_energy_eff(e, metrics=m):.1%}')
     print(m)
     print("+++++++++++++++++ DONE ++++++++++++++++++")
