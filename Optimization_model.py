@@ -241,37 +241,39 @@ class DefaultPM(ProcessModel):
              
 class Optimizer(ABC):
     
-    def __init__(self, run_id='test', track_progress=False):
+    def __init__(self, eval_funct: callable, run_id='test', track_progress=False):
+        self.eval_funct = eval_funct
         self.run_id=run_id
         self.track_progress = track_progress
         
     def create_experiment_at(self, x) -> Experiment:
-        e = Experiment(x_f0=self.init_exp.x_f0, x_s0=self.init_exp.x_s0,
-                       A_mem=self.init_exp.A_mem, sigma=self.init_exp.sigma, L=self.init_exp.L, Lc=self.init_exp.Lc)
+        e = Experiment(**self.fixed_params)
         xa = DataArray(data=x, coords=XA_COORDS)
         set_opt_x(e, xa)
         return e
+    
+    def __objective_f(self, x : ndarray) -> float:
+        e = self.create_experiment_at(x)
+        e.run()
+        e.analyze()
+        return -1 * self.eval_funct(e)
         
     @abstractmethod
-    def optimize(self, init_exp: Experiment, bd: Bounds, eval_funct: callable) -> OptimizeResult:
+    def optimize(self, init_exp: Experiment, bd: Bounds) -> OptimizeResult:
         ...
         
 class DIRECT_Optimizer(Optimizer):
     
-    def __init__(self, run_id='test', track_progress=False):
-        super().__init__(run_id, track_progress)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.cb_count = 0
         
-    def optimize(self, init_exp: Experiment, bd: Bounds, eval_funct: callable) -> OptimizeResult:
-        
-        def objective_f(x : ndarray) -> float:
-            e = self.create_experiment_at(x)
-            e.run()
-            e.analyze()
-            return -1 * eval_funct(e)
-        
-        self.init_exp = init_exp
-        self.eval_funct = eval_funct
+    def optimize(self, init_exp: Experiment, bd: Bounds) -> OptimizeResult:
+                
+        self.fixed_params = dict(
+            x_f0=init_exp.x_f0, x_s0=init_exp.x_s0,
+            A_mem=init_exp.A_mem, sigma=init_exp.sigma, 
+            L=init_exp.L, Lc=init_exp.Lc)
         # x0 = DataArray(
         #     data=[init_exp.T, init_exp.N_f0, init_exp.P_f, init_exp.N_s0, init_exp.P_s],
         #     coords=XA_COORDS)
@@ -282,33 +284,35 @@ class DIRECT_Optimizer(Optimizer):
                                              fieldnames=XA_COORDS[0][1] + ['eval'])
             self.file_writer.writeheader()
             
-        retval = scipy.optimize.direct(objective_f, bd, 
+        retval = scipy.optimize.direct(self.__objective_f, bd, 
                                        eps=5e-3, locally_biased=False, 
                                        len_tol=1e-4, vol_tol=(1/5000)**5,
-                                       maxfun=10000*5, maxiter=20000,
-                                       callback=self.optimizer_cb)
+                                       maxfun=100*5, maxiter=20000,
+                                       callback=self.__optimizer_cb)
         
         if self.track_progress:
             self.prog_file.close()
             
+        self.optimal_x = DataArray(data=retval.x, coords=XA_COORDS)
         return retval
 
-    def optimizer_cb(self, xk):
+    def __optimizer_cb(self, xk):
         self.cb_count += 1
         if self.cb_count % 100 == 0:
             print("CB invocation:", self.cb_count)
         if self.track_progress:
             dict_to_write = {param:val for (param,val) in zip(XA_COORDS[0][1], xk)}
             dict_to_write['eval'] = self.eval_funct(self.create_experiment_at(xk))
-            self.file_writer.writerow()
+            self.file_writer.writerow(dict_to_write)
 
 
 if __name__ == "__main__":
     e = Experiment(T=900, 
                     N_f0=1e-4, x_f0="H2O:1", P_f=101325,
                     N_s0=1e-4, x_s0="CH4:1", P_s=101325,
-                    A_mem=10, sigma=1.93, L=700)
-    optimizer = DIRECT_Optimizer(run_id=RUN_ID, track_progress=True)
+                    #A_mem=10, sigma=1.93, L=700
+                    )
+    optimizer = DIRECT_Optimizer(DefaultPM.eval_experiment, run_id=RUN_ID, track_progress=True)
     m = Metrics()
     lb = DataArray(
         data=[600, e.A_mem * 1e-4 * 1e-3, 101325*0.1, e.A_mem * 1e-4 * 1e-3, 101325*0.1],
@@ -321,11 +325,11 @@ if __name__ == "__main__":
         print('Profiling ' + PROFILE_ID)
     print("Starting optimizer...")
     if PROFILE_ID != None:
-        cProfile.run('optimizer.optimize(e, Bounds(lb, ub), DefaultPM.eval_experiment)', PROFILE_ID + '_profile')
+        cProfile.run('optimizer.optimize(e, Bounds(lb, ub))', PROFILE_ID + '_profile')
         stats = pstats.Stats(PROFILE_ID + '_profile')
-        stats.strip_dirs().sort_stats('cumtime').print_stats()
+        stats.strip_dirs().sort_stats('tottime').print_stats(100)
     else:
-        res = optimizer.optimize(e, Bounds(lb, ub), DefaultPM.eval_experiment)
+        res = optimizer.optimize(e, Bounds(lb, ub))
         print(res)
         set_opt_x(e, DataArray(data=res.x, coords=XA_COORDS))
         e.print_analysis()
