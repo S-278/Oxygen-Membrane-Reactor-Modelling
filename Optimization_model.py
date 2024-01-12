@@ -279,7 +279,7 @@ class DIRECT_Optimizer(Optimizer):
         if self.track_progress:
             self.prog_file = open(self.run_id + '_progress.csv', 'w+', newline='')
             self.file_writer = csv.DictWriter(self.prog_file, 
-                                             fieldnames=XA_COORDS[0][1] + ['eff'])
+                                             fieldnames=XA_COORDS[0][1] + ['eval'])
             self.file_writer.writeheader()
             
         retval = scipy.optimize.direct(objective_f, bd, 
@@ -298,7 +298,9 @@ class DIRECT_Optimizer(Optimizer):
         if self.cb_count % 100 == 0:
             print("CB invocation:", self.cb_count)
         if self.track_progress:
-            self.file_writer.writerow({param:val for (param,val) in zip(XA_COORDS[0][1], xk)})
+            dict_to_write = {param:val for (param,val) in zip(XA_COORDS[0][1], xk)}
+            dict_to_write['eval'] = self.eval_funct(self.create_experiment_at(xk))
+            self.file_writer.writerow()
 
 
 if __name__ == "__main__":
