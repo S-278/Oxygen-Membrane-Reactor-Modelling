@@ -245,8 +245,15 @@ class Optimizer(ABC):
         self.run_id=run_id
         self.track_progress = track_progress
         
+    def create_experiment_at(self, x) -> Experiment:
+        e = Experiment(x_f0=self.init_exp.x_f0, x_s0=self.init_exp.x_s0,
+                       A_mem=self.init_exp.A_mem, sigma=self.init_exp.sigma, L=self.init_exp.L, Lc=self.init_exp.Lc)
+        xa = DataArray(data=x, coords=XA_COORDS)
+        set_opt_x(e, xa)
+        return e
+        
     @abstractmethod
-    def optimize(self, init_guess: Experiment, bd: Bounds, eval_funct: callable) -> OptimizeResult:
+    def optimize(self, init_exp: Experiment, bd: Bounds, eval_funct: callable) -> OptimizeResult:
         ...
         
 class DIRECT_Optimizer(Optimizer):
@@ -258,14 +265,13 @@ class DIRECT_Optimizer(Optimizer):
     def optimize(self, init_exp: Experiment, bd: Bounds, eval_funct: callable) -> OptimizeResult:
         
         def objective_f(x : ndarray) -> float:
-            xa = DataArray(data=x, coords=XA_COORDS)
-            e = Experiment(x_f0=init_exp.x_f0, x_s0=init_exp.x_s0,
-                           A_mem=init_exp.A_mem, sigma=init_exp.sigma, L=init_exp.L, Lc=init_exp.Lc)
-            set_opt_x(e, xa)
+            e = self.create_experiment_at(x)
             e.run()
             e.analyze()
             return -1 * eval_funct(e)
         
+        self.init_exp = init_exp
+        self.eval_funct = eval_funct
         # x0 = DataArray(
         #     data=[init_exp.T, init_exp.N_f0, init_exp.P_f, init_exp.N_s0, init_exp.P_s],
         #     coords=XA_COORDS)
