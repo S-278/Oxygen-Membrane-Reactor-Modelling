@@ -86,6 +86,17 @@ def set_opt_x(exp : Experiment, xa : DataArray):
     exp.P_f=xa.sel(param="P_f").item()
     exp.N_s0=xa.sel(param="N_s0").item()
     exp.P_s=xa.sel(param="P_s").item()
+    
+def syngas_ratio_filter(ratio: float) -> float:
+    SYNGAS_RATIO_TARGET = 2/1
+    SYNGAS_RATIO_TOL = 0.5
+    SYNGAS_RATIO_FILTER_STR = 5
+    halfpt_lo = SYNGAS_RATIO_TARGET-SYNGAS_RATIO_TOL
+    halfpt_hi = SYNGAS_RATIO_TARGET+SYNGAS_RATIO_TOL
+    return -0.5 *(                                                         \
+                  tanh(SYNGAS_RATIO_FILTER_STR * (ratio - halfpt_hi)) +    \
+                  tanh(SYNGAS_RATIO_FILTER_STR * (-1*ratio + halfpt_lo))   \
+                 ) + 0
         
 class Metrics(dict):
     
@@ -130,11 +141,6 @@ class ProcessModel:
         self.boil_RT = GAS_CONST * u.Quantity(100, u.degC).to("degK")
         self.CH4_spec_grav_energy = CH4_M_Molar * GRAV_ACCEL * self.PUMPING_HEIGHT
         self.H2Ol_spec_grav_energy = H2O_M_Molar * GRAV_ACCEL * self.PUMPING_HEIGHT
-        
-        self.SYNGAS_RATIO_TARGET = 2/1
-        self.SYNGAS_RATIO_TOL = 0.5
-        self.SYNGAS_RATIO_FILTER_STR = 5
-    
     
     def get_energy_eff(self, exp: Experiment, metrics : Metrics = None) -> float:  
         funct_params = copy.deepcopy(locals()); ProcessModel.__remove_builtins(funct_params)
@@ -247,17 +253,8 @@ class ProcessModel:
             
         return efficiency_tot.magnitude
     
-    def syngas_ratio_filter(self, ratio: float) -> float:
-        halfpt_lo = self.SYNGAS_RATIO_TARGET-self.SYNGAS_RATIO_TOL
-        halfpt_hi = self.SYNGAS_RATIO_TARGET+self.SYNGAS_RATIO_TOL
-        return -0.5 *(                                                              \
-                      tanh(self.SYNGAS_RATIO_FILTER_STR * (ratio - halfpt_hi)) +    \
-                      tanh(self.SYNGAS_RATIO_FILTER_STR * (-1*ratio + halfpt_lo))   \
-                     ) + 0
-
-    
     def eval_experiment(self, exp: Experiment) -> float:
-        return self.get_energy_eff(exp) * self.syngas_ratio_filter(exp.s_H2_prod/exp.s_CO_prod)
+        return self.get_energy_eff(exp) * syngas_ratio_filter(exp.s_H2_prod/exp.s_CO_prod)
     
     def optimize_experiment(self, exp: Experiment, bd: Bounds) -> OptimizeResult:
         
@@ -294,7 +291,7 @@ if __name__ == "__main__":
     ub = DataArray(
         data=[1500, e.A_mem * 1e-4 * 1000, 101325*10, e.A_mem * 1e-4 * 1000, 101325*10],
         coords=XA_COORDS)
-    print("+++++++++++++++++ RUN Input Origin sigma=5.84 ++++++++++++++++++")
+    print("+++++++++++++++++ RUN " + RUN_ID + " ++++++++++++++++++")
     print("Starting optimizer...")
     res = proc_model.optimize_experiment(e, Bounds(lb, ub))
     print(res)
