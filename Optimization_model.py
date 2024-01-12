@@ -200,7 +200,7 @@ class ProcessModel:
                               self.CH4_spec_grav_energy                                             \
                               + (exp.P_s * u.Pa - self.AMBIENT_P)/self.AMBIENT_P * self.ambient_RT  \
                         ) / self.PUMPING_EFF
-        if CH4_pump_cons < 0: CH4_pump_cons.magnitude = 0
+        if CH4_pump_cons < 0: CH4_pump_cons = 0 * u.W
             
         # Condenser operation
         H2_condenser_cons =                             \
@@ -249,6 +249,7 @@ class ProcessModel:
             for quantity in metrics_to_add.values():
                 try: quantity.ito("W")
                 except pint.DimensionalityError: pass
+                # except AttributeError: print(quantity)
             metrics.update(metrics_to_add)
             
         return efficiency_tot.magnitude
@@ -282,8 +283,8 @@ if __name__ == "__main__":
     e = Experiment(T=900, 
                     N_f0=1e-4, x_f0="H2O:1", P_f=101325,
                     N_s0=1e-4, x_s0="CH4:1", P_s=101325,
-                    A_mem=10, sigma=5.84, L=250)
-    proc_model = ProcessModel()
+                    A_mem=10, sigma=0.56, L=700)
+    pm = ProcessModel()
     m = Metrics()
     lb = DataArray(
         data=[600, e.A_mem * 1e-4 * 1e-3, 101325*0.1, e.A_mem * 1e-4 * 1e-3, 101325*0.1],
@@ -293,9 +294,10 @@ if __name__ == "__main__":
         coords=XA_COORDS)
     print("+++++++++++++++++ RUN " + RUN_ID + " ++++++++++++++++++")
     print("Starting optimizer...")
-    res = proc_model.optimize_experiment(e, Bounds(lb, ub))
+    res = pm.optimize_experiment(e, Bounds(lb, ub))
     print(res)
     set_opt_x(e, DataArray(data=res.x, coords=XA_COORDS))
     e.print_analysis()
-    print(f'Optimized energy eff.: {proc_model.get_energy_eff(e):.1%}')
+    print(f'Optimized energy eff.: {pm.get_energy_eff(e, metrics=m):.1%}')
+    print(m)
     print("+++++++++++++++++ DONE ++++++++++++++++++")
