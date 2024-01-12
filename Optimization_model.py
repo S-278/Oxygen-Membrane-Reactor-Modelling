@@ -12,8 +12,13 @@ from xarray import DataArray
 import pint; u=pint.UnitRegistry()
 import copy
 from math import tanh
+import csv
 
-XA_COORDS =  [("param", ["T", "N_f0", 'P_f', 'N_s0', 'P_s'])]
+RUN_ID = ""
+
+TRACK_OPT_PROGRESS = True
+
+XA_COORDS =  [("param", ['T', 'N_f0', 'P_f', 'N_s0', 'P_s'])]
 
 GAS_CONST = 8.314 * u.J/(u.mol * u.degK)
 GRAV_ACCEL = 9.81 * u.m/(u.s**2)
@@ -32,23 +37,39 @@ CH4_Cp_INT = (1.2229 * u.kJ/(u.kg*u.degK) * CH4_M_Molar)\
              .to(u.J/(u.mol*u.degK))
 
 glb_cb_ct = 0
-glb_opt_intermediates = numpy.zeros((2000))
+glb_prog_file = None
+glb_file_reader = None
+glb_file_writer = None
 
 def optimize_wrapper(x0 : DataArray, bd : Bounds, f : callable) -> OptimizeResult:
-    return scipy.optimize.direct(f, bd, 
-                                 eps=1e-3, locally_biased=True, 
-                                 len_tol=1e-3, vol_tol=1*10**(-3*5),
+    global glb_prog_file
+    global glb_file_writer
+    
+    if TRACK_OPT_PROGRESS:
+        glb_prog_file = open(RUN_ID + '_progress.csv', 'x+', newline='')
+        glb_file_writer = csv.DictWriter(glb_prog_file, 
+                                         fieldnames=['T', 'N_f0', 'P_f', 'N_s0', 'P_s', 'eff'])
+        glb_file_writer.writeheader()
+    retval = scipy.optimize.direct(f, bd, 
+                                 eps=1e-2, locally_biased=False, 
+                                 len_tol=1e-4, vol_tol=(1/5000)**5,
                                  maxfun=5000*5, maxiter=20000
                                  ,callback=optimize_cb
                                  )
+    if TRACK_OPT_PROGRESS:
+        glb_prog_file.close()
+    return retval
 
 def optimize_cb(xk):
     global glb_cb_ct
-    global glb_opt_intermediates
-    # glb_opt_intermediates[glb_cb_ct] = xk
+    global glb_prog_file
+    global glb_file_writer
+
     glb_cb_ct += 1
     if glb_cb_ct % 100 == 0:
         print("CB invocation:", glb_cb_ct)
+    if TRACK_OPT_PROGRESS:
+        glb_file_writer.writerow({param:val for (param,val) in zip(XA_COORDS[0][1], xk)})
         
 def extract_opt_x(exp : Experiment) -> DataArray:
     ret = DataArray(coords=XA_COORDS)
