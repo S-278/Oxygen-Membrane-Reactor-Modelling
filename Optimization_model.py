@@ -264,6 +264,40 @@ class Optimizer(ABC):
     def optimize(self, init_exp: Experiment, bd: Bounds) -> OptimizeResult:
         ...
         
+    def explore_optimum(self, target_var: str, lookabout_range: tuple = None):
+        
+        if lookabout_range == None:
+            lookabout_range = (
+                DataArray(
+                    data=[-50, 
+                          -self.optimal_x.sel(param='N_f0').item() * 0.1,
+                          -0.5*101325,
+                          -self.optimal_x.sel(param='N_s0').item() * 0.1,
+                          -0.5*101325],
+                    coords=XA_COORDS),
+                DataArray(
+                    data=[50, 
+                          self.optimal_x.sel(param='N_f0').item() * 0.1,
+                          0.5*101325,
+                          self.optimal_x.sel(param='N_s0').item() * 0.1,
+                          0.5*101325],
+                    coords=XA_COORDS)
+            )
+            
+        def compute_target(exp_grid: ndarray) -> ndarray:
+            vectorized_target_compute = None
+            if target_var == 'eval':
+                vectorized_target_compute = numpy.vectorize(self.eval_funct)
+            else:
+                vectorized_target_compute = numpy.vectorize(lambda e: getattr(e, target_var))
+            return vectorized_target_compute(exp_grid)
+        
+        indep_var_axes = DataArray(coords=XA_COORDS)
+        for idx,(lower_dist,upper_dist,optimum) in enumerate(zip(lookabout_range[0], lookabout_range[1], self.optimal_x)):
+            indep_var_axes[idx] = numpy.linspace(optimum + lower_dist, optimum + upper_dist)
+        
+        target_axis_T = compute_target(Experiment.grid(T=indep_var_axes.sel(param='T'), **self.fixed_params))
+                        
 class DIRECT_Optimizer(Optimizer):
     
     def __init__(self, *args, **kwargs):
