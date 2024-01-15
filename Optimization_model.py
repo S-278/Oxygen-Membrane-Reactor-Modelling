@@ -76,7 +76,8 @@ class Metrics(dict):
         ret += f'{"External heat consumption":~^50}\n'
         ret += col_template.format('Reactor:', f'{self["reactor_heat_supply"].to_compact():.2f}')
         ret += col_template.format('H2O boiling:', f'{self["H2O_boil_cons"].to_compact():.2f}')
-        ret += '{: <20}{: >20} {: <30}\n'.format('Preheating:', f'{self["H2O_preheat_cons"].to_compact()+self["CH4_preheat_cons"].to_compact():.2f}', f'(F:{self["H2O_preheat_cons"].to_compact():.2f}/S:{self["CH4_preheat_cons"].to_compact():.2f})')
+        ret += col_template.format('Preheating:', f'{self["H2O_preheat_cons"].to_compact()+self["CH4_preheat_cons"].to_compact():.2f}')
+        ret += '{: >40}\n'.format(f'(F:{self["H2O_preheat_cons"].to_compact():.2f}/S:{self["CH4_preheat_cons"].to_compact():.2f})')
         ret += col_template.format('CO2 sep:', f'{self["CO2_sep_heat_cons"].to_compact():.2f}')
         ret += endl_template.format('TOTAL', f'{self["ext_heat_cons"].to_compact():.2f}')
         ret += f'{"Electricity consumption":~^50}\n'
