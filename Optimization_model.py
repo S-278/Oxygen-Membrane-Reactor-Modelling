@@ -226,7 +226,7 @@ class DefaultPM(ProcessModel):
         efficiency_tot = P_out/P_in
         
         if (metrics != None):
-            metrics_to_add = copy.deepcopy(locals()); ProcessModel.__remove_builtins(metrics_to_add)
+            metrics_to_add = copy.deepcopy(locals()); Metrics.remove_builtins(metrics_to_add)
             for param_name in funct_params:
                 del metrics_to_add[param_name]
             del metrics_to_add["funct_params"]
@@ -254,7 +254,7 @@ class Optimizer(ABC):
         set_opt_x(e, xa)
         return e
     
-    def __objective_f(self, x : ndarray) -> float:
+    def _objective_f(self, x : ndarray) -> float:
         e = self.create_experiment_at(x)
         e.run()
         e.analyze()
@@ -286,10 +286,10 @@ class DIRECT_Optimizer(Optimizer):
                                              fieldnames=XA_COORDS[0][1] + ['eval'])
             self.file_writer.writeheader()
             
-        retval = scipy.optimize.direct(self.__objective_f, bd, 
-                                       eps=5e-3, locally_biased=False, 
+        retval = scipy.optimize.direct(self._objective_f, bd, 
+                                       eps=1e-1, locally_biased=False, 
                                        len_tol=1e-4, vol_tol=(1/5000)**5,
-                                       maxfun=100*5, maxiter=20000,
+                                       maxfun=500000*5, maxiter=20000,
                                        callback=self.__optimizer_cb)
         
         if self.track_progress:
@@ -312,15 +312,15 @@ if __name__ == "__main__":
     e = Experiment(T=900, 
                     N_f0=1e-4, x_f0="H2O:1", P_f=101325,
                     N_s0=1e-4, x_s0="CH4:1", P_s=101325,
-                    #A_mem=10, sigma=1.93, L=700
+                    A_mem=10, sigma=1.3, L=250
                     )
     optimizer = DIRECT_Optimizer(DefaultPM.eval_experiment, run_id=RUN_ID, track_progress=True)
     m = Metrics()
     lb = DataArray(
-        data=[600, e.A_mem * 1e-4 * 1e-3, 101325*0.1, e.A_mem * 1e-4 * 1e-3, 101325*0.1],
+        data=[800, e.A_mem * 1e-4, 101325*0.8, e.A_mem * 1e-4, 101325*0.8],
         coords=XA_COORDS)
     ub = DataArray(
-        data=[1500, e.A_mem * 1e-4 * 1000, 101325*10, e.A_mem * 1e-4 * 1000, 101325*10],
+        data=[1000, e.A_mem * 1e-2, 101325*1.2, e.A_mem * 1e-2, 101325*1.2],
         coords=XA_COORDS)
     print("+++++++++++++++++ RUN " + RUN_ID + " ++++++++++++++++++")
     if PROFILE_ID != None:
