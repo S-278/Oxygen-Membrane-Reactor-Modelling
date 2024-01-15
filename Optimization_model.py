@@ -5,7 +5,14 @@ Created on Wed Dec 13 19:04:05 2023
 @author: elijah.bakaleynik
 """
 
-from OMR_model import Experiment
+RUN_ID = "Input origin Kai's, narrow"
+PROFILE_ID = None
+if PROFILE_ID != None:
+    import cProfile
+    import pstats
+    from OMR_model_profile import Experiment
+else:
+    from OMR_model import Experiment
 from scipy.optimize import Bounds, OptimizeResult; import scipy.optimize
 from numpy import ndarray; import numpy
 from xarray import DataArray
@@ -14,12 +21,6 @@ import copy
 from math import tanh
 import csv
 from abc import ABC, abstractmethod
-
-RUN_ID = "test"
-PROFILE_ID = None
-if PROFILE_ID != None:
-    import cProfile
-    import pstats
 
 XA_COORDS =  [("param", ['T', 'N_f0', 'P_f', 'N_s0', 'P_s'])]
 
@@ -280,7 +281,7 @@ class DIRECT_Optimizer(Optimizer):
         #     coords=XA_COORDS)
         
         if self.track_progress:
-            self.prog_file = open(self.run_id + '_progress.csv', 'w+', newline='')
+            self.prog_file = open('progress_tracking\\' + self.run_id + '_progress.csv', 'w+', newline='')
             self.file_writer = csv.DictWriter(self.prog_file, 
                                              fieldnames=XA_COORDS[0][1] + ['eval'])
             self.file_writer.writeheader()
@@ -326,8 +327,9 @@ if __name__ == "__main__":
         print('Profiling ' + PROFILE_ID)
     print("Starting optimizer...")
     if PROFILE_ID != None:
-        cProfile.run('optimizer.optimize(e, Bounds(lb, ub))', PROFILE_ID + '_profile')
-        stats = pstats.Stats(PROFILE_ID + '_profile')
+        stats_path = 'profiling_stats\\' + PROFILE_ID + '_profile'
+        cProfile.run('optimizer.optimize(e, Bounds(lb, ub))', stats_path)
+        stats = pstats.Stats(stats_path)
         stats.strip_dirs().sort_stats('tottime').print_stats(100)
     else:
         res = optimizer.optimize(e, Bounds(lb, ub))
