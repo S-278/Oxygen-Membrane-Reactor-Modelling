@@ -9,7 +9,8 @@ from OMR_model import *
 from Optimization_model import *
 
 e=Experiment()
-opt = DIRECT_Optimizer()
+e=Experiment(T=900, 
+opt = DIRECT_Optimizer(DefaultPM.eval_experiment)
 m=Metrics()
 e.print_analysis()
 print(f'Energy eff.: {DefaultPM.get_energy_eff(e, metrics=m):.1%}')
