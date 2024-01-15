@@ -258,7 +258,9 @@ class Experiment:
         col_template = '{: <20}{: >20}'; #col_sep = ', '
         print(col_template.format('Feed H2 produced:', f'{self.f_H2_prod:.2e} mol/min'))
         print(col_template.format('H2O conversion:', f'{self.H2O_conv:.0%}'))
-        print(f'Sweep syngas produced: {self.s_H2_prod:.2e} mol/min H2 + {self.s_CO_prod:.2e} mol/min CO ({self.s_H2_prod/self.s_CO_prod:.2f}:1)')
+        print(col_template.format('Sweep syngas prod.:', f'{self.s_H2_prod:.2e} mol/min H2'))
+        print(col_template.format('', f'{self.s_CO_prod:.2e} mol/min CO'))
+        print(col_template.format('', f'({self.s_H2_prod/self.s_CO_prod:.2f}:1)'))
         print(col_template.format('CH4 conversion:', f'{self.CH4_conv:.0%}'))
         print(col_template.format('CO selectivity:', f'{self.CO_sel:.0%}'))
         print(col_template.format('Sweep O2 conversion:', f'{self.O2_conv:.0%}'))
