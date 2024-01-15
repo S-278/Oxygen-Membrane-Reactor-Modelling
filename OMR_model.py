@@ -288,6 +288,8 @@ class Experiment:
         space. For each variable specified as a keyword argument, the returned
         array of Experiments will have an axis along which Experiments are 
         initialized with the values of the input variable.
+        
+        TODO: document fixed params!
 
         Parameters
         ----------
@@ -313,19 +315,28 @@ class Experiment:
         exs[2, 0, 1].P_s == 0.9*101325
 
         """
-        shape = tuple((len(axis) for axis in kwargs.values()))
+        axes = dict(); fixed_params = dict()
+        for (key,val) in kwargs.items():
+            try:
+                if len(val) > 1: axes[key] = val
+                else: fixed_params[key] = val
+            except TypeError:
+                fixed_params[key] = val
+                
+        shape = tuple((len(axis) for axis in axes.values()))
         ret_arr = np.empty(shape, dtype=Experiment)
         
-        coords_1D = [np.arange(0,len(axis)) for axis in kwargs.values()]
+        coords_1D = [np.arange(0,len(axis)) for axis in axes.values()]
         flat_coords = [coord_arr.flat for coord_arr in 
                        np.meshgrid(*coords_1D, copy=False)]
         
         flat_inputs = [coord_arr.flat for coord_arr in 
-                       np.meshgrid(*kwargs.values(), copy=False)]
+                       np.meshgrid(*axes.values(), copy=False)]
         
         
         for input_point,arr_point in zip(zip(*flat_inputs), zip(*flat_coords)):
-            init_dict = {input_var:val for input_var,val in zip(kwargs.keys(), input_point)}
+            init_dict = {input_var:val for input_var,val in zip(axes.keys(), input_point)}
+            init_dict.update(fixed_params)
             ret_arr[arr_point] = Experiment(**init_dict)
             
         return ret_arr
