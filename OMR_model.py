@@ -555,3 +555,8 @@ def find_pO2(T, P_f, N_f0, x_f0, P_s, N_s0, x_s0, j_o2):
     p_o2_s = mix_s.species_moles[mix_s.species_index(0,'O2')]/mix_s.phase_moles()*mix_s.P
 
     return p_o2_f, p_o2_s
+
+if __name__ == '__main__':
+    e = Experiment()
+    e.run()
+    e.print_analysis()
