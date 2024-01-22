@@ -319,12 +319,10 @@ class Experiment:
         """
         axes = dict(); fixed_params = dict()
         for (key,val) in kwargs.items():
-            try:
-                if len(val) > 1: axes[key] = val
-                else: fixed_params[key] = val
-            except TypeError:
-                fixed_params[key] = val
-                
+            if isinstance(val, np.ndarray) and len(val) > 1:
+                axes[key] = val
+            else: fixed_params[key] = val
+        
         shape = tuple((len(axis) for axis in axes.values()))
         ret_arr = np.empty(shape, dtype=Experiment)
         
