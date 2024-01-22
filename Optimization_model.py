@@ -68,6 +68,11 @@ def syngas_ratio_filter(ratio: float) -> float:
                   tanh(SYNGAS_RATIO_FILTER_STR * (ratio - halfpt_hi)) +    \
                   tanh(SYNGAS_RATIO_FILTER_STR * (-1*ratio + halfpt_lo))   \
                  ) + 0
+        
+def target_N_o2_filter(N_o2: float) -> float:
+    N_O2_TARGET = 4.4e-5
+    N_O2_TOL = 0.9e-5
+    return 0.5 * tanh(1/N_O2_TOL * (N_o2 - (N_O2_TARGET - N_O2_TOL))) + 0.5
 
              
 class Metrics(dict):
@@ -242,6 +247,15 @@ class DefaultPM(ProcessModel):
     @classmethod
     def eval_experiment(cls, exp: Experiment) -> float:
         return cls.get_energy_eff(exp) * syngas_ratio_filter(exp.s_H2_prod/exp.s_CO_prod)
+    
+class Spec_N_o2_PM(DefaultPM):
+    
+    @classmethod
+    def eval_experiment(cls, exp: Experiment) -> float:
+        return cls.get_energy_eff(exp)                              \
+               * syngas_ratio_filter(exp.s_H2_prod/exp.s_CO_prod)   \
+               * target_N_o2_filter(exp.N_o2 / exp.A_mem)
+
              
 class Optimizer(ABC):
     
@@ -520,6 +534,7 @@ if __name__ == "__main__":
         data=[1500, 5e-4, 101325*1.2, 5e-4, 101325*1.5],
         coords=XA_COORDS)
     print("+++++++++++++++++ RUN " + RUN_ID + " ++++++++++++++++++")
+    print(f'PID: {os.getpid()}')
     if PROFILE_ID != None:
         print('Profiling ' + PROFILE_ID)
     print("Starting optimizer...")
