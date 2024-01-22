@@ -5,7 +5,7 @@ Created on Wed Dec 13 19:04:05 2023
 @author: elijah.bakaleynik
 """
 
-RUN_ID = "Input origin Kai's, narrow"
+RUN_ID = "N_o2, 2.15"
 PROFILE_ID = None
 if PROFILE_ID != None:
     import cProfile
@@ -21,6 +21,8 @@ import copy
 from math import tanh
 import csv
 from abc import ABC, abstractmethod
+import matplotlib.pyplot as plt
+import os
 
 XA_COORDS =  [("param", ['T', 'N_f0', 'P_f', 'N_s0', 'P_s'])]
 
@@ -401,9 +403,6 @@ class DIRECT_Optimizer(Optimizer):
             x_f0=init_exp.x_f0, x_s0=init_exp.x_s0,
             A_mem=init_exp.A_mem, sigma=init_exp.sigma, 
             L=init_exp.L, Lc=init_exp.Lc)
-        # x0 = DataArray(
-        #     data=[init_exp.T, init_exp.N_f0, init_exp.P_f, init_exp.N_s0, init_exp.P_s],
-        #     coords=XA_COORDS)
         
         if self.track_progress:
             self.prog_file = open('progress_tracking\\' + self.run_id + '_progress.csv', 'w+', newline='')
@@ -412,9 +411,9 @@ class DIRECT_Optimizer(Optimizer):
             self.file_writer.writeheader()
             
         retval = scipy.optimize.direct(self._objective_f, bd, 
-                                       eps=1e-1, locally_biased=False, 
+                                       eps=1e-3, locally_biased=False, 
                                        len_tol=1e-4, vol_tol=(1/5000)**5,
-                                       maxfun=500000*5, maxiter=20000,
+                                       maxfun=50000*5, maxiter=20000,
                                        callback=self.__optimizer_cb)
         
         if self.track_progress:
@@ -433,19 +432,92 @@ class DIRECT_Optimizer(Optimizer):
             self.file_writer.writerow(dict_to_write)
 
 
+class DE_Optimizer(Optimizer):
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cb_count = 0
+
+    def optimize(self, init_exp: Experiment, bd: Bounds) -> OptimizeResult:
+                
+        self.fixed_params = dict(
+            x_f0=init_exp.x_f0, x_s0=init_exp.x_s0,
+            A_mem=init_exp.A_mem, sigma=init_exp.sigma, 
+            L=init_exp.L, Lc=init_exp.Lc)
+        x0 = DataArray(
+            data=[init_exp.T, init_exp.N_f0, init_exp.P_f, init_exp.N_s0, init_exp.P_s],
+            coords=XA_COORDS)
+        
+        if self.track_progress:
+            self.prog_file = open('progress_tracking\\' + self.run_id + '_progress.csv', 'w+', newline='')
+            self.file_writer = csv.DictWriter(self.prog_file, 
+                                             fieldnames=XA_COORDS[0][1] + ['eval'])
+            self.file_writer.writeheader()
+            
+        retval = scipy.optimize.differential_evolution(self._objective_f, bd,
+                                                       x0=x0,
+                                                       maxiter=int(40000/(100*5)-1), 
+                                                       popsize=100, init='sobol',
+                                                       atol=0.003,
+                                                       mutation=(1,1.4), recombination=0.6,
+                                                       callback=self.__optimizer_cb,
+                                                       polish=False,
+                                                       updating='immediate')
+        
+        if self.track_progress:
+            self.prog_file.close()
+            
+        self.optimal_x = DataArray(data=retval.x, coords=XA_COORDS)
+        return retval
+
+    def __optimizer_cb(self, xk, convergence):
+        self.cb_count += 1
+        print("CB invocation: " + str(self.cb_count) + ", convergence: " + str(convergence))
+        if self.track_progress:
+            dict_to_write = {param:val for (param,val) in zip(XA_COORDS[0][1], xk)}
+            dict_to_write['eval'] = self.eval_funct(self.create_experiment_at(xk))
+            self.file_writer.writerow(dict_to_write)
+
 if __name__ == "__main__":
-    e = Experiment(T=900, 
-                    N_f0=1e-4, x_f0="H2O:1", P_f=101325,
-                    N_s0=1e-4, x_s0="CH4:1", P_s=101325,
-                    A_mem=10, sigma=1.3, L=250
-                    )
-    optimizer = DIRECT_Optimizer(DefaultPM.eval_experiment, run_id=RUN_ID, track_progress=True)
+    # opt = DIRECT_Optimizer(DefaultPM.eval_experiment)
+    # origin=DataArray(coords=XA_COORDS,
+    #                  data=[950,1e-3,101325,1e-3,101325])
+    # init_exp=Experiment(A_mem=10,sigma=5.84,L=250)
+    # num_samples= DataArray(
+    #     data=[30, 10, 10, 10, 10],
+    #     coords=XA_COORDS)
+    # lookabout_range = (
+    #     DataArray(
+    #         data=[-50, 
+    #               -origin.sel(param='N_f0').item() * 0.1,
+    #               -0.9*101325,
+    #               -origin.sel(param='N_s0').item() * 0.1,
+    #               -0.2*101325],
+    #         coords=XA_COORDS),
+    #     DataArray(
+    #         data=[50, 
+    #               origin.sel(param='N_f0').item() * 0.1,
+    #               0.9*101325,
+    #               origin.sel(param='N_s0').item() * 0.1,
+    #               0.2*101325],
+    #         coords=XA_COORDS)
+    # )
+
+    # opt.explore_local('N_o2',origin=origin,init_exp=init_exp, num_samples=num_samples, lookabout_range=lookabout_range)
+    
+    
+    e_init = Experiment(T=1100, 
+                        N_f0=1e-4, x_f0="H2O:1", P_f=101325,
+                        N_s0=1e-4, x_s0="CH4:1", P_s=0.8*101325,
+                        A_mem=1, sigma=10.74, L=500
+                        )
+    optimizer = DE_Optimizer(Spec_N_o2_PM.eval_experiment, run_id=RUN_ID, track_progress=True)
     m = Metrics()
     lb = DataArray(
-        data=[800, e.A_mem * 1e-4, 101325*0.8, e.A_mem * 1e-4, 101325*0.8],
+        data=[800, 7e-5, 101325*0.8, 7e-5, 101325*0.5],
         coords=XA_COORDS)
     ub = DataArray(
-        data=[1000, e.A_mem * 1e-2, 101325*1.2, e.A_mem * 1e-2, 101325*1.2],
+        data=[1500, 5e-4, 101325*1.2, 5e-4, 101325*1.5],
         coords=XA_COORDS)
     print("+++++++++++++++++ RUN " + RUN_ID + " ++++++++++++++++++")
     if PROFILE_ID != None:
@@ -453,14 +525,13 @@ if __name__ == "__main__":
     print("Starting optimizer...")
     if PROFILE_ID != None:
         stats_path = 'profiling_stats\\' + PROFILE_ID + '_profile'
-        cProfile.run('optimizer.optimize(e, Bounds(lb, ub))', stats_path)
+        cProfile.run('optimizer.optimize(e_init, Bounds(lb, ub))', stats_path)
         stats = pstats.Stats(stats_path)
         stats.strip_dirs().sort_stats('tottime').print_stats(100)
     else:
-        res = optimizer.optimize(e, Bounds(lb, ub))
+        res = optimizer.optimize(e_init, Bounds(lb, ub))
         print(res)
-        set_opt_x(e, DataArray(data=res.x, coords=XA_COORDS))
-        e.print_analysis()
-        print(f'Optimized energy eff.: {DefaultPM.get_energy_eff(e, metrics=m):.1%}')
-        print(m)
+        e_opt = optimizer.create_experiment_at(res.x)
+        e_opt.print_analysis()
+        print(f'E eff.: {Spec_N_o2_PM.get_energy_eff(e_opt)}')
     print("+++++++++++++++++ DONE ++++++++++++++++++")
