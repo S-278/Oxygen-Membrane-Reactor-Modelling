@@ -264,39 +264,130 @@ class Optimizer(ABC):
     def optimize(self, init_exp: Experiment, bd: Bounds) -> OptimizeResult:
         ...
         
-    def explore_optimum(self, target_var: str, lookabout_range: tuple = None):
-        
-        if lookabout_range == None:
+    def explore_local(self, target, 
+                      origin=None, init_exp: Experiment = None, 
+                      lookabout_range: tuple = None, num_samples: DataArray = None):
+                    
+        if num_samples is None:
+            num_samples = DataArray(
+                data=[50, 20, 20, 20, 20],
+                coords=XA_COORDS)
+            
+        if origin is None:
+            origin = self.optimal_x
+            
+        if lookabout_range is None:
             lookabout_range = (
                 DataArray(
                     data=[-50, 
-                          -self.optimal_x.sel(param='N_f0').item() * 0.1,
-                          -0.5*101325,
-                          -self.optimal_x.sel(param='N_s0').item() * 0.1,
-                          -0.5*101325],
+                          -origin.sel(param='N_f0').item() * 0.1,
+                          -0.2*101325,
+                          -origin.sel(param='N_s0').item() * 0.1,
+                          -0.2*101325],
                     coords=XA_COORDS),
                 DataArray(
                     data=[50, 
-                          self.optimal_x.sel(param='N_f0').item() * 0.1,
-                          0.5*101325,
-                          self.optimal_x.sel(param='N_s0').item() * 0.1,
-                          0.5*101325],
+                          origin.sel(param='N_f0').item() * 0.1,
+                          0.2*101325,
+                          origin.sel(param='N_s0').item() * 0.1,
+                          0.2*101325],
                     coords=XA_COORDS)
             )
-            
+
+        fixed_exp_params = dict()
+        if init_exp is None:
+            fixed_exp_params = self.fixed_params
+        else:
+            fixed_exp_params = dict(x_f0=init_exp.x_f0, x_s0=init_exp.x_s0,
+                                    A_mem=init_exp.A_mem, sigma=init_exp.sigma, 
+                                    L=init_exp.L, Lc=init_exp.Lc)
+                    
+        indep_var_axes = dict()
+        for param in XA_COORDS[0][1]:
+            indep_var_axes[param] =                                                                         \
+                numpy.linspace(origin.sel(param=param).item() + lookabout_range[0].sel(param=param).item(), 
+                               origin.sel(param=param).item() + lookabout_range[1].sel(param=param).item(),
+                               num=num_samples.sel(param=param).item())
+        
         def compute_target(exp_grid: ndarray) -> ndarray:
             vectorized_target_compute = None
-            if target_var == 'eval':
+            if callable(target):
+                vectorized_target_compute = numpy.vectorize(target)
+            elif target == 'eval':
                 vectorized_target_compute = numpy.vectorize(self.eval_funct)
             else:
-                vectorized_target_compute = numpy.vectorize(lambda e: getattr(e, target_var))
+                vectorized_target_compute = numpy.vectorize(lambda e: getattr(e, target))
             return vectorized_target_compute(exp_grid)
+
+        target_vs_T = compute_target(Experiment.grid(T=indep_var_axes['T'], 
+                                                      N_f0=origin.sel(param='N_f0').item(),
+                                                      N_s0=origin.sel(param='N_s0').item(),
+                                                      P_f=origin.sel(param='P_f').item(),
+                                                      P_s=origin.sel(param='P_f').item(),
+                                                      **fixed_exp_params))
+        target_vs_T_fig, target_vs_T_ax = plt.subplots()
+        target_vs_T_ax.plot(indep_var_axes['T'], target_vs_T)
+        target_vs_T_ax.spines['left'].set_position(('data', origin.sel(param='T').item()))
+        target_vs_T_ax.spines['right'].set_visible(False); target_vs_T_ax.spines['top'].set_visible(False)
+        target_vs_T_ax.set_title(target + ' vs. T'); target_vs_T_ax.set_xlabel('T (°C)'); target_vs_T_ax.set_ylabel(target)
+        target_vs_T_fig.show()
         
-        indep_var_axes = DataArray(coords=XA_COORDS)
-        for idx,(lower_dist,upper_dist,optimum) in enumerate(zip(lookabout_range[0], lookabout_range[1], self.optimal_x)):
-            indep_var_axes[idx] = numpy.linspace(optimum + lower_dist, optimum + upper_dist)
+        target_vs_N = compute_target(Experiment.grid(T=origin.sel(param='T').item(),
+                                                      N_f0=indep_var_axes['N_f0'], 
+                                                      N_s0=indep_var_axes['N_s0'],
+                                                      P_f=origin.sel(param='P_f').item(),
+                                                      P_s=origin.sel(param='P_f').item(),
+                                                      **fixed_exp_params))
+        target_vs_N_fig, target_vs_N_ax = plt.subplots(subplot_kw={'projection':'3d'})        
+        target_vs_N_ax.plot_surface(*numpy.meshgrid(indep_var_axes['N_f0'], 
+                                                    indep_var_axes['N_s0']),
+                                    numpy.transpose(target_vs_N))
         
-        target_axis_T = compute_target(Experiment.grid(T=indep_var_axes.sel(param='T'), **self.fixed_params))
+        # TODO: transpose bullshit
+        
+        # target_vs_N_ax.text(origin.sel(param='N_f0'),
+        #                     origin.sel(param='N_s0'),)
+        target_vs_N_ax.set_title(target + ' vs. N_f0 and N_s0'); target_vs_N_ax.set_xlabel('N_f0 (mol/min)'); target_vs_N_ax.set_ylabel('N_s0 (mol/min)'); target_vs_N_ax.set_zlabel(target)
+        target_vs_N_fig.show()
+        
+        target_vs_P = compute_target(Experiment.grid(T=origin.sel(param='T').item(),
+                                                     N_f0=origin.sel(param='N_f0').item(),
+                                                     N_s0=origin.sel(param='N_s0').item(),
+                                                     P_f=indep_var_axes['P_f'],
+                                                     P_s=indep_var_axes['P_s'], 
+                                                     **fixed_exp_params))
+        target_vs_P_fig, target_vs_P_ax = plt.subplots(subplot_kw={'projection':'3d'}) 
+        target_vs_P_ax.plot_surface(*numpy.meshgrid(indep_var_axes['P_f'], 
+                                                   indep_var_axes['P_s']),
+                                    numpy.transpose(target_vs_P))
+        target_vs_P_ax.set_title(target + ' vs. P_f and P_s'); target_vs_P_ax.set_xlabel('P_f (Pa)'); target_vs_P_ax.set_ylabel('P_s (Pa)'); target_vs_P_ax.set_zlabel(target)
+        target_vs_P_fig.show()
+        
+        # target_vs_P_f = compute_target(Experiment.grid(T=origin.sel(param='T').item(),
+        #                                                N_f0=origin.sel(param='N_f0').item(),
+        #                                                N_s0=origin.sel(param='N_s0').item(),
+        #                                                P_f=indep_var_axes['P_f'], 
+        #                                                P_s=origin.sel(param='P_s').item(), 
+        #                                                **fixed_exp_params))
+        # target_vs_P_f_fig, target_vs_P_f_ax = plt.subplots()
+        # target_vs_P_f_ax.plot(indep_var_axes['P_f'], target_vs_P_f)
+        # target_vs_P_f_ax.spines['left'].set_position(('data', origin.sel(param='P_f').item()))
+        # target_vs_P_f_ax.spines['right'].set_visible(False); target_vs_P_f_ax.spines['top'].set_visible(False)
+        # target_vs_P_f_ax.set_title(target + ' vs. P_f'); target_vs_P_f_ax.set_xlabel('P_f (Pa)'); target_vs_P_f_ax.set_ylabel(target)
+        # target_vs_P_f_fig.show()
+        
+        # target_vs_P_s = compute_target(Experiment.grid(T=origin.sel(param='T').item(),
+        #                                                N_f0=origin.sel(param='N_f0').item(),
+        #                                                N_s0=origin.sel(param='N_s0').item(),
+        #                                                P_f=origin.sel(param='P_f').item(), 
+        #                                                P_s=indep_var_axes['P_s'], 
+        #                                                **fixed_exp_params))
+        # target_vs_P_s_fig, target_vs_P_s_ax = plt.subplots()
+        # target_vs_P_s_ax.plot(indep_var_axes['P_s'], target_vs_P_s)
+        # target_vs_P_s_ax.spines['left'].set_position(('data', origin.sel(param='P_s').item()))
+        # target_vs_P_s_ax.spines['right'].set_visible(False); target_vs_P_s_ax.spines['top'].set_visible(False)
+        # target_vs_P_s_ax.set_title(target + ' vs. P_s'); target_vs_P_s_ax.set_xlabel('P_s (Pa)'); target_vs_P_s_ax.set_ylabel(target)
+        # target_vs_P_s_fig.show()
                         
 class DIRECT_Optimizer(Optimizer):
     
