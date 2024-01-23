@@ -306,6 +306,11 @@ class Optimizer(ABC):
                           0.2*101325],
                     coords=XA_COORDS)
             )
+        else:
+            for step in lookabout_range[0]:
+                if step > 0: raise ValueError('Positive value given for negative step')
+            for step in lookabout_range[1]:
+                if step < 0: raise ValueError('Negative value given for positive step')
 
         fixed_exp_params = dict()
         if init_exp is None:
