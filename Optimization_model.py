@@ -5,7 +5,7 @@ Created on Wed Dec 13 19:04:05 2023
 @author: elijah.bakaleynik
 """
 
-RUN_ID = "N_o2, 2.15"
+RUN_ID = "Baseline scenarios test"
 PROFILE_ID = None
 if PROFILE_ID != None:
     import cProfile
@@ -23,6 +23,7 @@ import csv
 from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
 import os
+from enum import Enum; from enum import auto as e_auto
 
 XA_COORDS =  [("param", ['T', 'N_f0', 'P_f', 'N_s0', 'P_s'])]
 
@@ -103,10 +104,16 @@ class Metrics(dict):
             if (var_name.startswith('__') and var_name.endswith('__')): 
                 del d[var_name]
 
+class Scenarios(Enum):
+    PESSIMISTIC = e_auto()
+    CENTRAL = e_auto()
+    OPTIMISTIC = e_auto()
+
+class ModelParameter(dict):
+    pass
             
 class ProcessModel(ABC):
       
-    @classmethod
     @abstractmethod
     def eval_experiment(self, exp: Experiment) -> float:
         ...
@@ -253,7 +260,66 @@ class Spec_N_o2_PM(Default_PM):
                * syngas_ratio_filter(exp.s_H2_prod/exp.s_CO_prod)   \
                * target_N_o2_filter(exp.N_o2 / exp.A_mem)
 
-             
+class Scenario_PM(Spec_N_o2_PM):
+    
+    def __get_param(self, param_name):
+        scenario = None
+        try:
+            scenario = self.scenario_def[param_name]
+        except KeyError:
+            scenario = Scenarios.CENTRAL
+        return self.MODEL_PARAMETERS[param_name][scenario]
+        
+    def __add_param_property(param_name):
+        return property(fget=lambda self: self.__get_param(param_name))
+
+    MODEL_PARAMETERS = {
+        'H2O_CYCLE_LOSS' : ModelParameter({
+            Scenarios.PESSIMISTIC : 0.4,
+            Scenarios.CENTRAL : 0.1,
+            Scenarios.OPTIMISTIC : 0.05}),
+        'H2O_PURIF_CONS' : ModelParameter({
+            Scenarios.PESSIMISTIC : 7.23e-5 * u.kWh/u.mol,
+            Scenarios.CENTRAL : 4.52e-5 * u.kWh/u.mol,
+            Scenarios.OPTIMISTIC : 3.61e-5 * u.kWh/u.mol}),
+        'H2O_BOILING_CONS' : ModelParameter({
+            Scenarios.PESSIMISTIC : 66.9 * u.kJ/u.mol,
+            Scenarios.CENTRAL : 52.6 * u.kJ/u.mol,
+            Scenarios.OPTIMISTIC : 49.3 * u.kJ/u.mol}),
+        'HX_EFF' : ModelParameter({
+            Scenarios.PESSIMISTIC : 0.64,
+            Scenarios.CENTRAL : 0.8,
+            Scenarios.OPTIMISTIC : 0.9}),
+        'REACTOR_HEAT_LOSS' : ModelParameter({
+            Scenarios.PESSIMISTIC : 0.3,
+            Scenarios.CENTRAL : 0.10,
+            Scenarios.OPTIMISTIC : 0.08}),
+        'CONDENSER_CW_FLOW_RATIO' : ModelParameter({
+            Scenarios.PESSIMISTIC : 4/1,
+            Scenarios.CENTRAL : 2/1,
+            Scenarios.OPTIMISTIC : 1.5/1}),
+        'RANKINE_EFF' : ModelParameter({
+            Scenarios.PESSIMISTIC : 0.32,
+            Scenarios.CENTRAL : 0.4,
+            Scenarios.OPTIMISTIC : 0.48}),
+        'PUMPING_EFF' : ModelParameter({
+            Scenarios.PESSIMISTIC : 0.56,
+            Scenarios.CENTRAL : 0.7,
+            Scenarios.OPTIMISTIC : 0.84})
+    }
+    
+    H2O_CYCLE_LOSS = __add_param_property('H2O_CYCLE_LOSS')
+    H2O_PURIF_CONS = __add_param_property('H2O_PURIF_CONS')
+    H2O_BOILING_CONS = __add_param_property('H2O_BOILING_CONS')
+    HX_EFF = __add_param_property('HX_EFF')
+    REACTOR_HEAT_LOSS = __add_param_property('REACTOR_HEAT_LOSS')
+    CONDENSER_CW_FLOW_RATIO = __add_param_property('CONDENSER_CW_FLOW_RATIO')
+    RANKINE_EFF = __add_param_property('RANKINE_EFF')
+    PUMPING_EFF = __add_param_property('PUMPING_EFF')
+    
+    def __init__(self, scenario_def: dict = dict()):
+        self.scenario_def = scenario_def        
+
 class Optimizer(ABC):
     
     def __init__(self, eval_funct: callable, run_id='test', track_progress=False):
@@ -275,6 +341,21 @@ class Optimizer(ABC):
         
     @abstractmethod
     def optimize(self, init_exp: Experiment, bd: Bounds) -> OptimizeResult:
+        ...
+        
+    def explore_local_T(self, target, 
+                        origin=None, init_exp: Experiment = None, 
+                        lookabout_range: tuple = None, num_samples: DataArray = None):
+        ...
+    
+    def explore_local_N(self, target, 
+                        origin=None, init_exp: Experiment = None, 
+                        lookabout_range: tuple = None, num_samples: DataArray = None):
+        ...
+    
+    def explore_local_P(self, target, 
+                        origin=None, init_exp: Experiment = None, 
+                        lookabout_range: tuple = None, num_samples: int = None):
         ...
         
     def explore_local(self, target, 
@@ -472,8 +553,8 @@ class DE_Optimizer(Optimizer):
             
         retval = scipy.optimize.differential_evolution(self._objective_f, bd,
                                                        x0=x0,
-                                                       maxiter=int(40000/(100*5)-1), 
-                                                       popsize=100, init='sobol',
+                                                       maxiter=int(40000/(120*5)-1), 
+                                                       popsize=120, init='sobol',
                                                        atol=0.003,
                                                        mutation=(1,1.4), recombination=0.6,
                                                        callback=self.__optimizer_cb,
@@ -495,7 +576,8 @@ class DE_Optimizer(Optimizer):
             self.file_writer.writerow(dict_to_write)
 
 if __name__ == "__main__":
-    # opt = DIRECT_Optimizer(DefaultPM.eval_experiment)
+    # ~~~~~~~~~~~~~ LOCAL EXPLORATION ~~~~~~~~~~~~~~~~~
+    # opt = DIRECT_Optimizer(Default_PM.eval_experiment)
     # origin=DataArray(coords=XA_COORDS,
     #                  data=[950,1e-3,101325,1e-3,101325])
     # init_exp=Experiment(A_mem=10,sigma=5.84,L=250)
@@ -521,34 +603,100 @@ if __name__ == "__main__":
 
     # opt.explore_local('N_o2',origin=origin,init_exp=init_exp, num_samples=num_samples, lookabout_range=lookabout_range)
     
+    # ~~~~~~~~~~~~~~~ OPTIMIZATION ~~~~~~~~~~~~~~~~+
+    # e_init = Experiment(T=1500, 
+    #                     N_f0=4e-4, x_f0="H2O:1", P_f=101325,
+    #                     N_s0=3e-5, x_s0="CH4:1", P_s=0.1*101325,
+    #                     A_mem=1, sigma=0.4, L=500
+    #                     )
+    # pm = Spec_N_o2_PM()
+    # optimizer = DE_Optimizer(pm.eval_experiment, run_id=RUN_ID, track_progress=True)
+    # m = Metrics()
+    # lb = DataArray(
+    #     data=[800, 2e-5, 101325*0.8, 2e-5, 101325*0.1],
+    #     coords=XA_COORDS)
+    # ub = DataArray(
+    #     data=[1500, 5e-4, 101325*1.2, 5e-4, 101325*1.5],
+    #     coords=XA_COORDS)
+    # print("+++++++++++++++++ RUN " + RUN_ID + " ++++++++++++++++++")
+    # print(f'PID: {os.getpid()}')
+    # if PROFILE_ID != None:
+    #     print('Profiling ' + PROFILE_ID)
+    # print("Starting optimizer...")
+    # if PROFILE_ID != None:
+    #     stats_path = 'profiling_stats\\' + PROFILE_ID + '_profile'
+    #     cProfile.run('optimizer.optimize(e_init, Bounds(lb, ub))', stats_path)
+    #     stats = pstats.Stats(stats_path)
+    #     stats.strip_dirs().sort_stats('tottime').print_stats(100)
+    # else:
+    #     res = optimizer.optimize(e_init, Bounds(lb, ub))
+    #     print(res)
+    #     e_opt = optimizer.create_experiment_at(res.x)
+    #     e_opt.print_analysis()
+    #     print(f'E eff.: {pm.get_energy_eff(e_opt)}')
+    # print("+++++++++++++++++ DONE ++++++++++++++++++")
     
-    e_init = Experiment(T=1100, 
-                        N_f0=1e-4, x_f0="H2O:1", P_f=101325,
-                        N_s0=1e-4, x_s0="CH4:1", P_s=0.8*101325,
-                        A_mem=1, sigma=10.74, L=500
-                        )
-    optimizer = DE_Optimizer(Spec_N_o2_PM.eval_experiment, run_id=RUN_ID, track_progress=True)
-    m = Metrics()
-    lb = DataArray(
-        data=[800, 7e-5, 101325*0.8, 7e-5, 101325*0.5],
-        coords=XA_COORDS)
-    ub = DataArray(
-        data=[1500, 5e-4, 101325*1.2, 5e-4, 101325*1.5],
-        coords=XA_COORDS)
-    print("+++++++++++++++++ RUN " + RUN_ID + " ++++++++++++++++++")
-    print(f'PID: {os.getpid()}')
-    if PROFILE_ID != None:
-        print('Profiling ' + PROFILE_ID)
-    print("Starting optimizer...")
-    if PROFILE_ID != None:
-        stats_path = 'profiling_stats\\' + PROFILE_ID + '_profile'
-        cProfile.run('optimizer.optimize(e_init, Bounds(lb, ub))', stats_path)
-        stats = pstats.Stats(stats_path)
-        stats.strip_dirs().sort_stats('tottime').print_stats(100)
-    else:
-        res = optimizer.optimize(e_init, Bounds(lb, ub))
-        print(res)
-        e_opt = optimizer.create_experiment_at(res.x)
-        e_opt.print_analysis()
-        print(f'E eff.: {Spec_N_o2_PM.get_energy_eff(e_opt)}')
-    print("+++++++++++++++++ DONE ++++++++++++++++++")
+    # ~~~~~~~~~~~~~~~~~~~~~~~ TORNADO ~~~~~~~~~~~~~~~~~
+    e_0 = Experiment(A_mem=10e4, L=250, sigma=5.84,
+                     x_f0="H2O:1", x_s0="CH4:1",
+                     T=950, P_f=101325, P_s=101325,
+                     N_f0=1e1, N_s0=1e1)
+    pm = Scenario_PM()
+    central_metrics = Metrics()
+    central_eff = pm.get_energy_eff(e_0, central_metrics)
+    print(f'Central case: eff. {central_eff:.1%}')
+    print(central_metrics)
+    efficiencies_per_scenario = dict()
+    
+    with open('scenario_analysis\\' + RUN_ID + '_metrics.csv', 'w+', newline='') as csv_f:
+        file_writer = csv.DictWriter(csv_f, fieldnames = ['Param', 'Scenario'] + list(central_metrics))
+        file_writer.writeheader()
+        to_write = {'Param' : None, 'Scenario' : Scenarios.CENTRAL}; to_write.update(central_metrics)
+        
+        def calculate_eff_per_param(param, scenario):
+            pm.scenario_def[param] = scenario
+            to_write = Metrics({'Param' : param, 'Scenario' : scenario})
+            eff = pm.get_energy_eff(e_0, to_write)
+            file_writer.writerow(to_write)
+            pm.scenario_def[param] = Scenarios.CENTRAL
+            return eff
+        calculate_eff_vectorized = numpy.vectorize(calculate_eff_per_param, otypes=[None])#, excluded=[1])
+        
+        for scenario in Scenarios:
+            if scenario != Scenarios.CENTRAL:
+                efficiencies_per_scenario[scenario] = calculate_eff_vectorized(list(pm.MODEL_PARAMETERS), scenario)
+                
+    tornado_fig, tornado_ax = plt.subplots(dpi=200)
+    bar_lbl_format = '{:+.0%}'
+    
+    pess_bars = tornado_ax.barh(
+        list(pm.MODEL_PARAMETERS), 
+        efficiencies_per_scenario[Scenarios.PESSIMISTIC] - central_eff, 
+        left=central_eff
+    )
+    tornado_ax.bar_label(
+         pess_bars, 
+         labels=[bar_lbl_format.format((eff - central_eff)/central_eff) for eff in efficiencies_per_scenario[Scenarios.PESSIMISTIC]],
+         padding=10
+    )
+    
+    opt_bars = tornado_ax.barh(
+        list(pm.MODEL_PARAMETERS),
+        efficiencies_per_scenario[Scenarios.OPTIMISTIC] - central_eff, 
+        left=central_eff
+    )
+    tornado_ax.bar_label(
+        opt_bars, 
+        labels=[bar_lbl_format.format((eff - central_eff)/central_eff) for eff in efficiencies_per_scenario[Scenarios.OPTIMISTIC]],
+        padding=10
+    )
+    
+    tornado_ax.set_xlim(right=1); tornado_ax.xaxis.set_major_formatter('{x:.1%}')
+    tornado_ax.spines[['right', 'bottom']].set_visible(False)
+    tornado_ax.spines['left'].set_position(('data', central_eff))
+    tornado_ax.get_xaxis().set_ticks_position('top')
+    tornado_ax.get_yaxis().set_ticks_position('left')
+    tornado_ax.tick_params(axis='y', which='both', pad=210, direction='inout')
+    tornado_ax.set_xlabel('Process Efficiency', labelpad=8)
+    tornado_ax.xaxis.set_label_position('top')
+    
