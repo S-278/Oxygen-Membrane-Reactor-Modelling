@@ -423,7 +423,7 @@ class DIRECT_Optimizer(Optimizer):
         if self.track_progress:
             self.prog_file = open('progress_tracking\\' + self.run_id + '_progress.csv', 'w+', newline='')
             self.file_writer = csv.DictWriter(self.prog_file, 
-                                             fieldnames=XA_COORDS[0][1] + ['eval'])
+                                              XA_COORDS[0][1] + ['eval'])
             self.file_writer.writeheader()
             
         retval = scipy.optimize.direct(self._objective_f, bd, 
@@ -467,7 +467,7 @@ class DE_Optimizer(Optimizer):
         if self.track_progress:
             self.prog_file = open('progress_tracking\\' + self.run_id + '_progress.csv', 'w+', newline='')
             self.file_writer = csv.DictWriter(self.prog_file, 
-                                             fieldnames=XA_COORDS[0][1] + ['eval'])
+                                              XA_COORDS[0][1] + ['eval'])
             self.file_writer.writeheader()
             
         retval = scipy.optimize.differential_evolution(self._objective_f, bd,
