@@ -108,10 +108,10 @@ class ProcessModel(ABC):
       
     @classmethod
     @abstractmethod
-    def eval_experiment(cls, exp: Experiment) -> float:
+    def eval_experiment(self, exp: Experiment) -> float:
         ...
             
-class DefaultPM(ProcessModel):
+class Default_PM(ProcessModel):
     H2O_CYCLE_LOSS = 0.10
     H2O_PURIF_CONS = 4.52e-5 * u.kWh/u.mol
     H2O_BOILING_CONS = 76.6 * u.kJ/u.mol
@@ -132,17 +132,16 @@ class DefaultPM(ProcessModel):
     CH4_spec_grav_energy = CH4_M_Molar * GRAV_ACCEL * PUMPING_HEIGHT
     H2Ol_spec_grav_energy = H2O_M_Molar * GRAV_ACCEL * PUMPING_HEIGHT
     
-    @classmethod
-    def get_energy_eff(cls, exp: Experiment, metrics : Metrics = None) -> float:  
+    def get_energy_eff(self, exp: Experiment, metrics : Metrics = None) -> float:  
         funct_params = copy.deepcopy(locals()); Metrics.remove_builtins(funct_params)
 
         # External heat input:
         # Reactor heat supply (reaction heat + heat loss)
         reactor_heat_supply =                                                \
             exp.dH * u.W *                                                   \
-            (1 + cls.REACTOR_HEAT_LOSS/(1-cls.REACTOR_HEAT_LOSS))
+            (1 + self.REACTOR_HEAT_LOSS/(1-self.REACTOR_HEAT_LOSS))
         # Input water boiling
-        H2O_boil_cons = exp.N_f0 * u.mol/u.min * cls.H2O_BOILING_CONS
+        H2O_boil_cons = exp.N_f0 * u.mol/u.min * self.H2O_BOILING_CONS
         # Preheating:
         exp_T = u.Quantity(exp.T, u.degC).to(u.degK)
         # Input water preheating
@@ -151,19 +150,19 @@ class DefaultPM(ProcessModel):
             exp.N_f0 * u.mol/u.min * (                          \
                   H2Og_Cp_SLOPE/2 * (exp_T**2 - boil_T**2)      \
                   + H2Og_Cp_INT * (exp_T - boil_T)              \
-            ) * (1-cls.HX_EFF)
+            ) * (1-self.HX_EFF)
         del boil_T
         # Input methane preheating
-        amb_T = cls.AMBIENT_T.to(u.degK)
+        amb_T = self.AMBIENT_T.to(u.degK)
         CH4_preheat_cons =                                \
             exp.N_s0 * u.mol/u.min * (                    \
                   CH4_Cp_SLOPE/2 * (exp_T**2 - amb_T**2)  \
                   + CH4_Cp_INT * (exp_T - amb_T)          \
-            ) * (1-cls.HX_EFF)
+            ) * (1-self.HX_EFF)
         del amb_T
         del exp_T
         # CO2 separation
-        CO2_sep_heat_cons = exp.s_CO2_prod * u.mol/u.min * cls.CO2_SEP_H_CONS
+        CO2_sep_heat_cons = exp.s_CO2_prod * u.mol/u.min * self.CO2_SEP_H_CONS
         
         ext_heat_cons = reactor_heat_supply                       \
                             + H2O_boil_cons + H2O_preheat_cons    \
@@ -173,40 +172,40 @@ class DefaultPM(ProcessModel):
         # External electricity input:
         # Calculate how much electricity 
         # can be recovered from waste heat.
-        waste_heat_recovered = exp.dH * u.W / ( (1-cls.REACTOR_HEAT_LOSS)/cls.REACTOR_HEAT_LOSS )
-        elec_produced = waste_heat_recovered * cls.RANKINE_EFF
+        waste_heat_recovered = exp.dH * u.W / ( (1-self.REACTOR_HEAT_LOSS)/self.REACTOR_HEAT_LOSS )
+        elec_produced = waste_heat_recovered * self.RANKINE_EFF
         # Calculate total electricity consumption:
         # Input water purification
-        H2O_pur_cons = exp.N_f0 * u.mol/u.min * cls.H2O_CYCLE_LOSS * cls.H2O_PURIF_CONS 
+        H2O_pur_cons = exp.N_f0 * u.mol/u.min * self.H2O_CYCLE_LOSS * self.H2O_PURIF_CONS 
         # Input pumping
-        H2Ol_pump_cons = exp.N_f0 * u.mol/u.min * cls.H2Ol_spec_grav_energy / cls.PUMPING_EFF
+        H2Ol_pump_cons = exp.N_f0 * u.mol/u.min * self.H2Ol_spec_grav_energy / self.PUMPING_EFF
         
         H2Og_pump_cons = 0 * u.W
-        if exp.P_f * u.Pa > cls.AMBIENT_P:
+        if exp.P_f * u.Pa > self.AMBIENT_P:
             H2Og_pump_cons = exp.N_f0 * u.mol/u.min                           \
-                             * (exp.P_f*u.Pa - cls.AMBIENT_P)/cls.AMBIENT_P   \
-                             * cls.boil_RT / cls.PUMPING_EFF
+                             * (exp.P_f*u.Pa - self.AMBIENT_P)/self.AMBIENT_P   \
+                             * self.boil_RT / self.PUMPING_EFF
                              
         CH4_pump_cons = exp.N_s0 * u.mol/u.min * (                                                  \
-                              cls.CH4_spec_grav_energy                                              \
-                              + (exp.P_s * u.Pa - cls.AMBIENT_P)/cls.AMBIENT_P * cls.ambient_RT     \
-                        ) / cls.PUMPING_EFF
+                              self.CH4_spec_grav_energy                                              \
+                              + (exp.P_s * u.Pa - self.AMBIENT_P)/self.AMBIENT_P * self.ambient_RT     \
+                        ) / self.PUMPING_EFF
         if CH4_pump_cons < 0: CH4_pump_cons = 0 * u.W
             
         # Condenser operation
         H2_condenser_cons =                             \
             exp.N_f * u.mol/u.min                       \
-            * cls.CONDENSER_CW_FLOW_RATIO               \
-            * cls.CONDENSER_CW_PUMPING_CONS             \
-            / cls.PUMPING_EFF
+            * self.CONDENSER_CW_FLOW_RATIO               \
+            * self.CONDENSER_CW_PUMPING_CONS             \
+            / self.PUMPING_EFF
         CH4_condenser_cons=                                                         \
             exp.N_s * u.mol/u.min                                                   \
             * (exp.x_s[exp.x_comp.index("CH4")] + exp.x_s[exp.x_comp.index("CO")])  \
-            * cls.CONDENSER_CW_FLOW_RATIO                                           \
-            * cls.CONDENSER_CW_PUMPING_CONS                                         \
-            / cls.PUMPING_EFF
+            * self.CONDENSER_CW_FLOW_RATIO                                           \
+            * self.CONDENSER_CW_PUMPING_CONS                                         \
+            / self.PUMPING_EFF
         # CO2 separation
-        CO2_sep_elec_cons = exp.s_CO2_prod * u.mol/u.min * cls.CO2_SEP_E_CONS
+        CO2_sep_elec_cons = exp.s_CO2_prod * u.mol/u.min * self.CO2_SEP_E_CONS
 
         elec_consumed = H2O_pur_cons                                        \
                         + H2Ol_pump_cons + CH4_pump_cons + H2Og_pump_cons   \
@@ -244,15 +243,13 @@ class DefaultPM(ProcessModel):
             
         return efficiency_tot.magnitude
     
-    @classmethod
-    def eval_experiment(cls, exp: Experiment) -> float:
-        return cls.get_energy_eff(exp) * syngas_ratio_filter(exp.s_H2_prod/exp.s_CO_prod)
+    def eval_experiment(self, exp: Experiment) -> float:
+        return self.get_energy_eff(exp) * syngas_ratio_filter(exp.s_H2_prod/exp.s_CO_prod)
     
-class Spec_N_o2_PM(DefaultPM):
+class Spec_N_o2_PM(Default_PM):
     
-    @classmethod
-    def eval_experiment(cls, exp: Experiment) -> float:
-        return cls.get_energy_eff(exp)                              \
+    def eval_experiment(self, exp: Experiment) -> float:
+        return self.get_energy_eff(exp)                              \
                * syngas_ratio_filter(exp.s_H2_prod/exp.s_CO_prod)   \
                * target_N_o2_filter(exp.N_o2 / exp.A_mem)
 
