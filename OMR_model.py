@@ -9,6 +9,7 @@ import numpy as np
 from scipy.optimize import fsolve
 import copy
 import math
+import re
 #Load GRI-Mech 3.0 mechanism
 sol1 = ct.Solution('gri30.yaml')
 sol2 = ct.Solution('gri30.yaml')
@@ -240,10 +241,18 @@ class Experiment:
         self.__analyzed_output['s_H2_prod'] = self.x_s[self.x_comp.index("H2")] * self.N_s
         self.__analyzed_output['s_CO_prod'] = self.x_s[self.x_comp.index("CO")] * self.N_s
         self.__analyzed_output['s_CO2_prod'] = self.x_s[self.x_comp.index("CO2")] * self.N_s
-        self.__analyzed_output['H2O_conv'] = ( self.N_f0 - self.x_f[self.x_comp.index("H2O")] * self.N_f ) / self.N_f0
-        self.__analyzed_output['CH4_conv'] = ( self.N_s0 - self.x_s[self.x_comp.index("CH4")] * self.N_s ) / self.N_s0
-        self.__analyzed_output['CO_sel'] = self.s_CO_prod / (self.s_CO_prod + self.s_CO2_prod)
-        self.__analyzed_output['O2_conv'] = (1 - (self.x_s[self.x_comp.index("O2")] / self.N_o2))
+        # Using regular expressions to parse x_f0 for the H2O fraction.
+        # Two layers of indexing are needed: first to select the first match,
+        # then to select the first pattern group 
+        # (pattern has two groups to find floats written both with and without a leading 0)
+        H2O_in = float(re.findall('H2O:(\d+(\.\d*)?|\.\d+)', self.x_f0)[0][0]) * self.N_f0
+        H2O_out = self.x_f[self.x_comp.index("H2O")] * self.N_f
+        self.__analyzed_output['H2O_conv'] = (H2O_in - H2O_out) / H2O_in
+        CH4_in = float(re.findall('CH4:(\d+(\.\d*)?|\.\d+)', self.x_s0)[0][0]) * self.N_s0
+        CH4_out = self.x_s[self.x_comp.index("CH4")] * self.N_s
+        self.__analyzed_output['CH4_conv'] = (CH4_in - CH4_out) / CH4_in
+        self.__analyzed_output['CO_sel'] = self.s_CO_prod / (CH4_in * self.CH4_conv)
+        self.__analyzed_output['O2_conv'] = (self.N_o2 - self.x_s[self.x_comp.index("O2")]) / self.N_o2
             
     def print_analysis(self):
         """Print analyzed outputs
