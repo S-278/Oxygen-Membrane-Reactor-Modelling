@@ -286,9 +286,23 @@ class Experiment:
                 f'({stream_fractions[idx]:.1%})'))
 
     def print_feed_output(self):
+        """Print composition of feed output
+        
+        Returns
+        -------
+        None.
+
+        """
         self.__print_stream(self.x_f, self.N_f)
             
     def print_sweep_output(self):
+        """Print composition of sweep output
+        
+        Returns
+        -------
+        None.
+
+        """
         self.__print_stream(self.x_s, self.N_s)
 
     def grid(**kwargs):
@@ -358,11 +372,18 @@ class Experiment:
         return ret_arr
     
 class Experiment_T_dep_sigma(Experiment):
+    """Subclass of Experiment with a temperature-dependent sigma
+    
+    This Experiment subclass can be used to simulate a membrane
+    whose conductivity changes with temperature. 
+    """
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
     def __T_to_sigma_map(cls, T: float) -> float:
+        # These numbers are an Arrhenius fit to STF-35
+        # from Fig.10 of https://ris.utwente.nl/ws/portalfiles/portal/107288677/structural.pdf
         return 151.9*math.exp(-76/(8.3e-3*(T+273.15)))
         
     sigma = property(
