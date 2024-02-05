@@ -318,7 +318,81 @@ class Scenario_PM(Spec_N_o2_PM):
     PUMPING_EFF = __add_param_property('PUMPING_EFF')
     
     def __init__(self, scenario_def: dict = dict()):
-        self.scenario_def = scenario_def        
+        self.scenario_def = scenario_def     
+        
+    def tornado(self, e_0 : Experiment, gen_metrics=False):
+        for key in self.MODEL_PARAMETERS:
+            self.scenario_def[key] = Scenarios.CENTRAL
+        central_metrics = None
+        if gen_metrics: central_metrics = Metrics()
+        central_eff = self.get_energy_eff(e_0, central_metrics)
+        # print(f'Central case: eff. {central_eff:.1%}')
+        # print(central_metrics)
+        efficiencies_per_scenario = dict()
+        
+        csv_f = None; file_writer = None
+        if gen_metrics: 
+            open('scenario_analysis\\' + RUN_ID + '_metrics.csv', 'w+', newline='')
+            file_writer = csv.DictWriter(csv_f, fieldnames = ['Param', 'Scenario'] + list(central_metrics))
+            file_writer.writeheader()
+            to_write = {'Param' : None, 'Scenario' : Scenarios.CENTRAL}; to_write.update(central_metrics)
+            file_writer.writerow(to_write)
+        
+        def calculate_eff_per_param(param, scenario):
+            self.scenario_def[param] = scenario
+            to_write = None
+            if gen_metrics: to_write = Metrics({'Param' : param, 'Scenario' : scenario})
+            eff = self.get_energy_eff(e_0, to_write)
+            if gen_metrics: file_writer.writerow(to_write)
+            self.scenario_def[param] = Scenarios.CENTRAL
+            return eff
+        calculate_eff_vectorized = numpy.vectorize(calculate_eff_per_param, otypes=[None], excluded=[1])
+        
+        for scenario in Scenarios:
+            if scenario != Scenarios.CENTRAL:
+                efficiencies_per_scenario[scenario] = calculate_eff_vectorized(list(self.MODEL_PARAMETERS), scenario)
+                    
+        if csv_f != None: csv_f.close()
+        
+        tornado_fig, tornado_ax = plt.subplots(figsize=(10,4.8))#dpi=200)
+        bar_lbl_format = '{:+.0%}'
+        
+        pess_bars = tornado_ax.barh(
+            list(self.MODEL_PARAMETERS), 
+            efficiencies_per_scenario[Scenarios.PESSIMISTIC] - central_eff, 
+            left=central_eff,
+            color=COLOR_SYNHELION_ANTHRACITE,
+        )
+        tornado_ax.bar_label(
+             pess_bars, 
+             labels=[bar_lbl_format.format((eff - central_eff)/central_eff) for eff in efficiencies_per_scenario[Scenarios.PESSIMISTIC]],
+             padding=10
+        )
+        
+        opt_bars = tornado_ax.barh(
+            list(self.MODEL_PARAMETERS),
+            efficiencies_per_scenario[Scenarios.OPTIMISTIC] - central_eff, 
+            left=central_eff,
+            color=COLOR_SYNHELION_YL,
+        )
+        tornado_ax.bar_label(
+            opt_bars, 
+            labels=[bar_lbl_format.format((eff - central_eff)/central_eff) for eff in efficiencies_per_scenario[Scenarios.OPTIMISTIC]],
+            padding=10
+        )
+        
+        tornado_ax.xaxis.set_major_formatter(PercentFormatter(decimals=0, xmax=1))#; tornado_ax.set_xlim(right=1)
+        tornado_ax.spines[['right', 'bottom']].set_visible(False)
+        tornado_ax.spines['left'].set_position(('data', central_eff))
+        tornado_ax.get_xaxis().set_ticks_position('top')
+        tornado_ax.get_yaxis().set_ticks_position('left')
+        tornado_ax.tick_params(axis='y', which='both', pad=400, direction='inout')
+        tornado_ax.set_xlabel('Process Efficiency', labelpad=8)
+        tornado_ax.xaxis.set_label_position('top')
+        lowest_eff = numpy.amin(efficiencies_per_scenario[Scenarios.PESSIMISTIC])
+        tornado_ax.set_xlim(left= central_eff - 1.5 * (central_eff - lowest_eff))
+        plt.show()
+        return tornado_fig
 
 class Optimizer(ABC):
     
@@ -636,67 +710,10 @@ if __name__ == "__main__":
     #     print(f'E eff.: {pm.get_energy_eff(e_opt)}')
     # print("+++++++++++++++++ DONE ++++++++++++++++++")
     
-    # ~~~~~~~~~~~~~~~~~~~~~~~ TORNADO ~~~~~~~~~~~~~~~~~
-    e_0 = Experiment(A_mem=10e4, L=250, sigma=5.84,
-                     x_f0="H2O:1", x_s0="CH4:1",
-                     T=950, P_f=101325, P_s=101325,
-                     N_f0=1e1, N_s0=1e1)
     pm = Scenario_PM()
-    central_metrics = Metrics()
-    central_eff = pm.get_energy_eff(e_0, central_metrics)
-    print(f'Central case: eff. {central_eff:.1%}')
-    print(central_metrics)
-    efficiencies_per_scenario = dict()
     
-    with open('scenario_analysis\\' + RUN_ID + '_metrics.csv', 'w+', newline='') as csv_f:
-        file_writer = csv.DictWriter(csv_f, fieldnames = ['Param', 'Scenario'] + list(central_metrics))
-        file_writer.writeheader()
-        to_write = {'Param' : None, 'Scenario' : Scenarios.CENTRAL}; to_write.update(central_metrics)
-        
-        def calculate_eff_per_param(param, scenario):
-            pm.scenario_def[param] = scenario
-            to_write = Metrics({'Param' : param, 'Scenario' : scenario})
-            eff = pm.get_energy_eff(e_0, to_write)
-            file_writer.writerow(to_write)
-            pm.scenario_def[param] = Scenarios.CENTRAL
-            return eff
-        calculate_eff_vectorized = numpy.vectorize(calculate_eff_per_param, otypes=[None])#, excluded=[1])
-        
-        for scenario in Scenarios:
-            if scenario != Scenarios.CENTRAL:
-                efficiencies_per_scenario[scenario] = calculate_eff_vectorized(list(pm.MODEL_PARAMETERS), scenario)
                 
-    tornado_fig, tornado_ax = plt.subplots(dpi=200)
-    bar_lbl_format = '{:+.0%}'
     
-    pess_bars = tornado_ax.barh(
-        list(pm.MODEL_PARAMETERS), 
-        efficiencies_per_scenario[Scenarios.PESSIMISTIC] - central_eff, 
-        left=central_eff
-    )
-    tornado_ax.bar_label(
-         pess_bars, 
-         labels=[bar_lbl_format.format((eff - central_eff)/central_eff) for eff in efficiencies_per_scenario[Scenarios.PESSIMISTIC]],
-         padding=10
-    )
     
-    opt_bars = tornado_ax.barh(
-        list(pm.MODEL_PARAMETERS),
-        efficiencies_per_scenario[Scenarios.OPTIMISTIC] - central_eff, 
-        left=central_eff
-    )
-    tornado_ax.bar_label(
-        opt_bars, 
-        labels=[bar_lbl_format.format((eff - central_eff)/central_eff) for eff in efficiencies_per_scenario[Scenarios.OPTIMISTIC]],
-        padding=10
-    )
     
-    tornado_ax.set_xlim(right=1); tornado_ax.xaxis.set_major_formatter('{x:.1%}')
-    tornado_ax.spines[['right', 'bottom']].set_visible(False)
-    tornado_ax.spines['left'].set_position(('data', central_eff))
-    tornado_ax.get_xaxis().set_ticks_position('top')
-    tornado_ax.get_yaxis().set_ticks_position('left')
-    tornado_ax.tick_params(axis='y', which='both', pad=210, direction='inout')
-    tornado_ax.set_xlabel('Process Efficiency', labelpad=8)
-    tornado_ax.xaxis.set_label_position('top')
     
