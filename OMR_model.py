@@ -296,19 +296,24 @@ class Experiment:
         
         Given input variables and their ranges, this method generates an 
         ND-array of Experiments to explore the entire specified parameter
-        space. For each variable specified as a keyword argument, the returned
+        space. For each array passed in as a keyword argument, the returned
         array of Experiments will have an axis along which Experiments are 
-        initialized with the values of the input variable.
+        initialized with the values of the given array. Keyword arguments
+        for which scalar values are passed in specify fixed parameters - 
+        all Experiments in the returned array will be initialized with 
+        the same value for each fixed parameter.
         
-        TODO: document fixed params!
-
         Parameters
         ----------
-        **kwargs : ndarray
-            Each keyword argument should be given as var=numpy.array(...), 
-            where var specifies the name of a model input parameter and is set 
-            to an ordered, regularly spaced array of values (e.g. created with
+        **kwargs : float or ndarray
+            Axis keyword arguments should be given as var=numpy.array(...), 
+            where var specifies the name of a model input parameter and the value 
+            is set to an ordered array of values (e.g. created with
             numpy.linspace or numpy.arange). 
+            Fixed parameter keyword arguments should be given as var=x,
+            where var specifies the name of a model input parameter,
+            and x is a float specifying what value this parameter should take
+            for all Experiments in the returned array.
 
         Returns
         -------
@@ -320,10 +325,12 @@ class Experiment:
         -------------
         exs = Experiment.grid(T=numpy.array([900,950,1000]),
                               P_f=numpy.array([101325, 1.1*101325, 1.2*101325]),
-                              P_s=numpy.array([0.8*101325, 0.9*101325, 101325]))
+                              P_s=numpy.array([0.8*101325, 0.9*101325, 101325]),
+                              sigma=2)
         exs[2, 0, 1].T == 1000
         exs[2, 0, 1].P_f == 101325
         exs[2, 0, 1].P_s == 0.9*101325
+        for e in exs.flat: e.sigma == 2
 
         """
         axes = dict(); fixed_params = dict()
