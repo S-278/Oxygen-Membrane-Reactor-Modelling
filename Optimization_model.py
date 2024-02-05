@@ -428,7 +428,10 @@ class Optimizer(ABC):
                 coords=XA_COORDS)
             
         if origin is None:
-            origin = self.optimal_x
+            try:
+                origin = self.optimal_x
+            except AttributeError:
+                raise ValueError('No origin provided for lookabout')
             
         if lookabout_range is None:
             lookabout_range = (
@@ -455,7 +458,10 @@ class Optimizer(ABC):
 
         fixed_exp_params = dict()
         if init_exp is None:
-            fixed_exp_params = self.fixed_params
+            try:
+                fixed_exp_params = self.fixed_params
+            except AttributeError:
+                raise ValueError('No initialization Experiment provided')
         else:
             fixed_exp_params = dict(x_f0=init_exp.x_f0, x_s0=init_exp.x_s0,
                                     A_mem=init_exp.A_mem, sigma=init_exp.sigma, 
