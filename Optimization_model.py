@@ -18,10 +18,11 @@ from numpy import ndarray; import numpy
 from xarray import DataArray
 import pint; u=pint.UnitRegistry()
 import copy
-from math import tanh
+from math import tanh, sqrt
 import csv
 from abc import ABC, abstractmethod
 import matplotlib.pyplot as plt
+from matplotlib.ticker import PercentFormatter
 import os
 from enum import Enum; from enum import auto as e_auto
 
@@ -42,6 +43,13 @@ CH4_Cp_SLOPE = (0.00333164 * u.kJ/(u.kg*u.degK**2) * CH4_M_Molar)\
                .to(u.J/(u.mol*u.degK**2))
 CH4_Cp_INT = (1.2229 * u.kJ/(u.kg*u.degK) * CH4_M_Molar)\
              .to(u.J/(u.mol*u.degK))
+             
+COLOR_SYNHELION_YLL = '#FFF385'
+COLOR_SYNHELION_YL = '#f9d900'
+COLOR_SYNHELION_GREY = '#AAAAAA'
+COLOR_SYNHELION_ANTHRACITE = '#333333'
+c_cycle = ['#EB4322', '#FFF208', '#F08D24', '#FFC90E',
+           '#99D9EA', '#7092BE', '#7F7F7F', '#424242']
              
 def extract_opt_x(exp : Experiment) -> DataArray:
     ret = DataArray(coords=XA_COORDS)
@@ -669,10 +677,9 @@ if __name__ == "__main__":
     #               0.2*101325],
     #         coords=XA_COORDS)
     # )
-
     # opt.explore_local('N_o2',origin=origin,init_exp=init_exp, num_samples=num_samples, lookabout_range=lookabout_range)
     
-    # ~~~~~~~~~~~~~~~ OPTIMIZATION ~~~~~~~~~~~~~~~~+
+    # ~~~~~~~~~~~~~~~ OPTIMIZATION ~~~~~~~~~~~~~~~~
     # e_init = Experiment(T=1500, 
     #                     N_f0=4e-4, x_f0="H2O:1", P_f=101325,
     #                     N_s0=3e-5, x_s0="CH4:1", P_s=0.1*101325,
@@ -705,10 +712,250 @@ if __name__ == "__main__":
     #     print(f'E eff.: {pm.get_energy_eff(e_opt)}')
     # print("+++++++++++++++++ DONE ++++++++++++++++++")
     
+    # ~~~~~~~~~~~~~~ PRESENTATION PLOTS ~~~~~~~~~~~~~~~
+    e_0 = Experiment(A_mem=1, L=500,
+                      T=950)
+    spec_conductances_flat = numpy.linspace(8e-2, 8, num=50)
+    sigmas_flat = spec_conductances_flat * 1e4 * e_0.L * 1e-6
+    cmap = 'Wistia_r'
+    c_cycle_ptr = 0
     pm = Scenario_PM()
+
     
+    # flowrates_flat = numpy.linspace(1e-5, 5e-3, num=50)
+    # spec_conductances, flowrates = numpy.meshgrid(spec_conductances_flat, flowrates_flat)
+    # def experiment_helper(spec_conductance, flowrate):
+    #     return Experiment(A_mem=e_0.A_mem, L=e_0.L,
+    #                       T=e_0.T, P_f=e_0.P_f, P_s=e_0.P_s,
+    #                       sigma=spec_conductance * 1e4 * e_0.L * 1e-6, 
+    #                       N_f0=flowrate, N_s0=flowrate)
+    # e_grid = numpy.vectorize(experiment_helper, otypes=[numpy.dtype(numpy.object_)])(spec_conductances, flowrates)
+    # efficiencies = numpy.vectorize(pm.get_energy_eff, otypes=[None])(e_grid)
+    # # H2O_conv = numpy.vectorize(lambda e: e.H2O_conv, otypes=[None])(e_grid)
+    
+    # # fake_counter = 0
+    # # def fake_helper(eff):
+    # #     global fake_counter
+    # #     fake_counter += 1
+    # #     if fake_counter % 2 == 0: return 0
+    # #     else: return 1
+    # # fake_data = numpy.vectorize(fake_helper, otypes=[None])(e_grid)
+    # # GEOMETRIC
+    # # x_step = spec_conductances_flat[1]/spec_conductances_flat[0]
+    # # left_x = spec_conductances_flat[0] / sqrt(x_step); right_x = spec_conductances_flat[-1] * sqrt(x_step)
+    # # y_step = flowrates_flat[1]/flowrates_flat[0]
+    # # bottom_y = flowrates_flat[0] / sqrt(y_step); top_y = flowrates_flat[-1] * sqrt(y_step)
+    # # x_corners = numpy.geomspace(left_x, right_x, num=len(spec_conductances_flat)+1)
+    # # y_corners = numpy.geomspace(bottom_y, top_y, num=len(flowrates_flat)+1)
+    # # LINEAR
+    # x_step = spec_conductances_flat[1] - spec_conductances_flat[0]
+    # left_x = spec_conductances_flat[0] - x_step/2; right_x = spec_conductances_flat[-1] + x_step/2
+    # y_step = flowrates_flat[1] - flowrates_flat[0]
+    # bottom_y = flowrates_flat[0] - y_step/2; top_y = flowrates_flat[-1] + y_step/2
+    # x_corners = numpy.linspace(left_x, right_x, num=len(spec_conductances_flat)+1)
+    # y_corners = numpy.linspace(bottom_y, top_y, num=len(flowrates_flat)+1)
+    # cmap_fig, cmap_ax = plt.subplots()
+    # # cmap_ax.set_xscale('log'); cmap_ax.set_yscale('log')
+    # cmap_ax.set_xlim((left_x, right_x)); cmap_ax.set_ylim((bottom_y, top_y))
+    # cmap_im = cmap_ax.pcolormesh(x_corners, y_corners, efficiencies, cmap=cmap)
+    # cmap_fig.colorbar(cmap_im, ax=cmap_ax, fraction=0.2, label='Process efficiency', format=PercentFormatter(xmax=1))
+    # cmap_ax.set_xlabel('Specific conductance (S/cm²)'); cmap_ax.set_ylabel('Specific flowrate per chamber (mol/min/cm²)')
+    # cmap_ax.yaxis.set_major_formatter('{x:.1e}')
+    # # cmap_fig.suptitle('N_f0 = N_s0, T = 950°C, P_f = P_s = 1 atm', x=0.98, y=0.02, ha='right')
+    # plt.show()
+    
+    # ~~~~~~~~~~~~~~~ EFFICIENT RXN PERF vs. SIGMA PLOT ~~~~~~~~~~~~~~~~
+    # def experiment_helper(spec_conductance):
+    #     return Experiment(A_mem=e_0.A_mem, L=e_0.L, 
+    #                       T=e_0.T, P_f=e_0.P_f, P_s=e_0.P_s,
+    #                       sigma=spec_conductance * 1e4 * e_0.L * 1e-6,
+    #                       N_f0 = 2e-5 * spec_conductance * e_0.A_mem,
+    #                       N_s0 = 2e-5 * spec_conductance * e_0.A_mem)
+    # e_grid = numpy.vectorize(experiment_helper, otypes=[numpy.dtype(numpy.object_)])(spec_conductances_flat)
+    # prod_vals = {
+    #     'j_o2' : numpy.array([e.N_o2 / e.A_mem for e in e_grid]),
+    #     'f_H2_prod' : numpy.array([e.f_H2_prod / e.A_mem for e in e_grid]),
+    #     's_H2_prod' : numpy.array([e.s_H2_prod / e.A_mem for e in e_grid]),
+    #     's_CO_prod' : numpy.array([e.s_CO_prod / e.A_mem for e in e_grid]),
+    # }
+    # percent_vals = {
+    #     'X_CH4' : numpy.array([e.CH4_conv for e in e_grid]),
+    #     'X_H2O' : numpy.array([e.H2O_conv for e in e_grid]),
+    #     'S_CO' : numpy.array([e.CO_sel for e in e_grid]),
+    # }    
+    # mean_j_o2_per_S = numpy.average(prod_vals['j_o2'] / spec_conductances_flat)
+    
+    # perf_fig, prod_ax = plt.subplots()
+    # prod_ax.set_xlabel('Specific conductance (S/cm²)'); #prod_ax.set_xscale('log')
+    # percent_ax = prod_ax.twinx()
+    
+    # ann_arrow_x_rel = 0.1
+    # ann_arrow_length_rel = 0.05
+    # for val_name, val_data in prod_vals.items():
+    #     if val_name == 's_CO_prod':
+    #         prod_ax.plot(spec_conductances_flat, val_data, linestyle='--', label=val_name, color=c_cycle[c_cycle_ptr]); c_cycle_ptr = (c_cycle_ptr + 1) % len(c_cycle)
+    #     else:  
+    #         prod_ax.plot(spec_conductances_flat, val_data, label=val_name, color=c_cycle[c_cycle_ptr]); c_cycle_ptr = (c_cycle_ptr + 1) % len(c_cycle)
+    #     ann_arrow_x_idx = max(
+    #         round(len(spec_conductances_flat) * ann_arrow_x_rel),
+    #         1)
+    #     ann_arrow_end_idx = min(
+    #         round(len(spec_conductances_flat) * (ann_arrow_x_rel - ann_arrow_length_rel)), 
+    #         ann_arrow_x_idx - 1)
+    #     prod_ax.annotate('', 
+    #                       (spec_conductances_flat[ann_arrow_x_idx], val_data[ann_arrow_x_idx]),
+    #                       xytext=(spec_conductances_flat[ann_arrow_end_idx], val_data[ann_arrow_x_idx]),
+    #                       arrowprops={'arrowstyle' : '<-'}
+    #                       )
+    #     ann_arrow_x_rel += 0.1
+    # prod_ax.set_ylabel('Specific flow rate (mol/min/cm²)')
+    # prod_ax.yaxis.set_major_formatter('{x:.1e}')
+    # # prod_ax.set_yscale('log')
+    # prod_ax.legend(loc='lower right', framealpha=0.9)
+ 
+    # ann_arrow_x_rel = 0.8
+    # for val_name, val_data in percent_vals.items():
+    #     percent_ax.plot(spec_conductances_flat, val_data, label=val_name, color=c_cycle[c_cycle_ptr]); c_cycle_ptr = (c_cycle_ptr + 1) % len(c_cycle)
+    #     ann_arrow_x_idx = min(
+    #         round(len(spec_conductances_flat) * ann_arrow_x_rel),
+    #         len(spec_conductances_flat) - 2)
+    #     ann_arrow_end_idx = max(
+    #         round(len(spec_conductances_flat) * (ann_arrow_x_rel + ann_arrow_length_rel)), 
+    #         ann_arrow_x_idx + 1)
+    #     percent_ax.annotate('', 
+    #                       (spec_conductances_flat[ann_arrow_x_idx], val_data[ann_arrow_x_idx]),
+    #                       xytext=(spec_conductances_flat[ann_arrow_end_idx], val_data[ann_arrow_x_idx]),
+    #                       arrowprops={'arrowstyle' : '<-'}
+    #                       )
+    #     ann_arrow_x_rel -= 0.1
+    # percent_ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+    # percent_ax.set_ylim((0.95, 1))
+    # percent_ax.legend(loc='upper right', framealpha=0.9)
+    
+    # # perf_fig.suptitle('T = 950°C, P_f = P_s = 1 atm, N_f0 = N_s0 = 2e-5 mol/min/S', x=0.98, y=0.02, ha='right')
+    # print(f'Mean oxygen/conductance: {mean_j_o2_per_S:.2e} mol/min/S')
+    # plt.show()
+    
+    # ~~~~~~~~~~~~~~~ FAST RXN PERF vs. SIGMA PLOT ~~~~~~~~~~~~~~~~
+    # csv_data = {
+    #     'spec_cond' : [],
+    #     'j_o2' : [],
+    #     'eff' : [],
+    #     'X_CH4' : [],
+    #     'X_H2O' : [],
+    #     'S_CO' : [],
+    #     'T' : [],
+    #     'P_f' : [],
+    #     'P_s' : [],
+    #     'N_f' : [],
+    #     'N_s' : [],
+    #     'nit' : [],
+    #     'nfev' : [],
+    # }
+    # with open('fast_operation_data.csv', mode='r', newline='') as csv_f:
+    #     f_reader = csv.DictReader(csv_f)
+    #     for row_dict  in f_reader:
+    #         for key,val in row_dict.items():
+    #             try:
+    #                 csv_data[key].append(float(val))
+    #             except ValueError:
+    #                 pass
+    # indep_data = csv_data['spec_cond']
                 
+    # def plot_twinx(x_ax_data : list, 
+    #                 left_ax_data : dict, left_ax, 
+    #                 right_ax_data : dict, right_ax,
+    #                 left_ann_start = 0.1, right_ann_start = 0.9):
+    #     c_cycle_ptr = 0
+    #     ann_arrow_x_rel = left_ann_start
+    #     ann_arrow_length_rel = 0.05
+        
+    #     for val_name, val_data in left_ax_data.items():
+    #         left_ax.plot(x_ax_data, val_data, label=val_name, color=c_cycle[c_cycle_ptr]); c_cycle_ptr = (c_cycle_ptr + 1) % len(c_cycle)
+    #         ann_arrow_x_idx = max(
+    #             round((len(x_ax_data) - 1) * ann_arrow_x_rel),
+    #             1)
+    #         ann_arrow_end_idx = min(
+    #             round((len(x_ax_data) - 1) * (ann_arrow_x_rel - ann_arrow_length_rel)), 
+    #             ann_arrow_x_idx - 1)
+    #         left_ax.annotate('', 
+    #                           (x_ax_data[ann_arrow_x_idx], val_data[ann_arrow_x_idx]),
+    #                           xytext=(x_ax_data[ann_arrow_end_idx], val_data[ann_arrow_x_idx]),
+    #                           arrowprops={'arrowstyle' : '<-'}
+    #                           )
+    #         ann_arrow_x_rel += 0.1
+            
+    #     ann_arrow_x_rel = right_ann_start
+    #     for val_name, val_data in right_ax_data.items():
+    #         right_ax.plot(x_ax_data, val_data, label=val_name, color=c_cycle[c_cycle_ptr]); c_cycle_ptr = (c_cycle_ptr + 1) % len(c_cycle)
+    #         ann_arrow_x_idx = min(
+    #             round((len(x_ax_data) - 1) * ann_arrow_x_rel),
+    #             (len(x_ax_data) - 1) - 1)
+    #         ann_arrow_end_idx = max(
+    #             round((len(x_ax_data) - 1) * (ann_arrow_x_rel + ann_arrow_length_rel)), 
+    #             ann_arrow_x_idx + 1)
+    #         right_ax.annotate('', 
+    #                           (x_ax_data[ann_arrow_x_idx], val_data[ann_arrow_x_idx]),
+    #                           xytext=(x_ax_data[ann_arrow_end_idx], val_data[ann_arrow_x_idx]),
+    #                           arrowprops={'arrowstyle' : '<-'}
+    #                           )
+    #         ann_arrow_x_rel -= 0.1
+                        
+    # perf_fig, prod_ax = plt.subplots()
+    # prod_ax.set_xscale('log'); prod_ax.set_xlim((8e-2,10)); prod_ax.set_xlabel('Specific conductance (S/cm²)')
+    # percent_ax = prod_ax.twinx()
+    # plot_twinx(indep_data, 
+    #             {'j_o2' : csv_data['j_o2'],}, 
+    #             prod_ax,
+    #             {'eff' : csv_data['eff'], 'X_CH4' : csv_data['X_CH4'], 'X_H2O' : csv_data['X_H2O'], 'S_CO' : csv_data['S_CO'],}, 
+    #             percent_ax)
+
+    # prod_ax.set_ylabel('Specific flow rate (mol/min/cm²)')
+    # prod_ax.yaxis.set_major_formatter('{y:.1e}')
+    # prod_ax.set_yscale('log')
+    # prod_ax.legend(loc='lower right', framealpha=0.9)
     
+    # percent_ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+    # # percent_ax.set_ylim((0.95, 1))
+    # percent_ax.legend(loc='center right', framealpha=0.9)
     
+    # op_pt_fig, (T_ax, N_ax, nit_ax) = plt.subplots(nrows=3, ncols=1, sharex=True, figsize=(4.8, 9.6))
+    # P_ax = T_ax.twinx(); nfev_ax = nit_ax.twinx()
+    # plot_twinx(indep_data, 
+    #             {'T' : csv_data['T']}, T_ax, 
+    #             {'P_f' : csv_data['P_f'], 'P_s' : csv_data['P_s']}, P_ax)
+    # T_ax.set_ylabel('Temperature (°C)')
+    # P_ax.set_ylabel('Pressure (Pa)'); P_ax.yaxis.set_major_formatter('{x:.1e}')
+    # N_ax.plot(indep_data, csv_data['N_f'], label='N_f', color=c_cycle[0])
+    # N_ax.plot(indep_data, csv_data['N_s'], label='N_s', color=c_cycle[1])
+    # N_ax.set_ylabel('Specific flowrate (mol min⁻¹S⁻¹)'); N_ax.yaxis.set_major_formatter('{x:.0e}')
+    # plot_twinx(indep_data, 
+    #             {'nit' : csv_data['nit']}, nit_ax, 
+    #             {'nfev' : csv_data['nfev']}, nfev_ax,
+    #             left_ann_start=0.1)
+    # nit_ax.set_ylabel('# iterations')
+    # nfev_ax.set_ylabel('# function evaluations'); nfev_ax.yaxis.set_major_formatter('{x:.1e}'); nfev_ax.set_ylim(top=3.5e4)
+    # nit_ax.set_xlabel('Specific conductance (S/cm²)')
+    # nit_ax.set_xscale('log'); nit_ax.set_xlim((8e-2,10))
+    # P_ax.legend(loc='upper center')
+    # N_ax.legend(loc='upper center')
     
+    # plt.show()
+    
+    # ~~~~~~~~~~~~~~~~ TORNADOS ~~~~~~~~~~~~~~~~~~~~~
+    e_efficient = Experiment(A_mem=1, L=500, sigma=8.62,
+                             T=950,
+                             N_f0=3.45e-5, N_s0=3.45e-5)
+    e_stressed = Experiment(A_mem=1, L=500, sigma=0.4,
+                            T=1500, 
+                            N_f0=4e-4, N_s0=3e-5,
+                            P_s=101325/10)
+    efficient_fig = pm.tornado(e_efficient)
+    # efficient_fig.suptitle('s = 0.37 S/cm², T = 950°C, P_f = P_s = 1 atm, N_f0 = N_s0 = 2e-5 mol/min/S', x=0.98, y=0.02, ha='right')
+    stressed_fig = pm.tornado(e_stressed)
+    # stressed_fig.suptitle('s = 0.20 S/cm², optimized operating pt.', x=0.98, y=0.02, ha='right')
+    plt.show()
+    
+    pass
+
     
