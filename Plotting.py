@@ -432,7 +432,7 @@ def tornado(pm : Scenario_PM, e_0 : Experiment, gen_metrics=False, from_cache=Fa
     tornado_ax.set_xlabel('Process Efficiency', labelpad=8)
     tornado_ax.xaxis.set_label_position('top')
     lowest_eff = numpy.amin(efficiencies_per_scenario[Scenarios.PESSIMISTIC])
-    low_x_lim = central_eff - 1.5 * (central_eff - lowest_eff)
+    low_x_lim = central_eff - 1.1 * (central_eff - lowest_eff)
     tornado_ax.set_xlim(left=low_x_lim)
 
     # Somewhat complicated transform procedure to ensure the y labels
