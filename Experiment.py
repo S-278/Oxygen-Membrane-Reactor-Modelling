@@ -86,32 +86,32 @@ class Experiment:
         Experiment object with initialized model inputs.
 
         """
-        self.__model_input = copy.deepcopy(self.input_origin)
-        self.__model_input.update(kwargs)
+        self._model_input = copy.deepcopy(self.input_origin)
+        self._model_input.update(kwargs)
         
-    def __set_input(self, key, val):
-        try: del self.__model_output
+    def _set_input(self, key, val):
+        try: del self._model_output
         except AttributeError: pass
-        try: del self.__analyzed_output
+        try: del self._analyzed_output
         except AttributeError: pass
-        self.__model_input[key] = val
+        self._model_input[key] = val
         
-    def __add_input_property(name):
+    def _add_input_property(name):
         return property(
-            fget = lambda self: self.__model_input[name],
-            fset = lambda self, newVal: self.__set_input(name, newVal))
+            fget = lambda self: self._model_input[name],
+            fset = lambda self, newVal: self._set_input(name, newVal))
         
-    T = __add_input_property('T')
-    N_f0 = __add_input_property('N_f0')
-    x_f0 = __add_input_property('x_f0')
-    P_f = __add_input_property(('P_f'))
-    N_s0 = __add_input_property('N_s0')
-    x_s0 = __add_input_property('x_s0')
-    P_s = __add_input_property('P_s')
-    A_mem = __add_input_property('A_mem')
-    sigma = __add_input_property('sigma')
-    L = __add_input_property('L')
-    Lc = __add_input_property('Lc')
+    T = _add_input_property('T')
+    N_f0 = _add_input_property('N_f0')
+    x_f0 = _add_input_property('x_f0')
+    P_f = _add_input_property(('P_f'))
+    N_s0 = _add_input_property('N_s0')
+    x_s0 = _add_input_property('x_s0')
+    P_s = _add_input_property('P_s')
+    A_mem = _add_input_property('A_mem')
+    sigma = _add_input_property('sigma')
+    L = _add_input_property('L')
+    Lc = _add_input_property('Lc')
     
     def print_input(self):
         """Print model inputs
@@ -137,26 +137,28 @@ class Experiment:
         print(col_template.format('Thickness: ', str(self.L) + ' um'),
               col_sep, col_template.format('char. length:', str(self.Lc) + ' um'), sep='')
             
-    def __get_output(self, key):
-        if not hasattr(self, "_Experiment__model_output"):
+    def _get_output(self, key):
+        try:
+            return self._model_output[key]
+        except AttributeError:
             self.run()
-        return self.__model_output[key]
+            return self._model_output[key]
             
-    def __add_output_property(name):
+    def _add_output_property(name):
         return property(
-            fget = lambda self: self.__get_output(name),
+            fget = lambda self: self._get_output(name),
             fset = None)
             
-    N_f = __add_output_property('N_f')
-    x_f = __add_output_property('x_f')
-    p_o2_f = __add_output_property('p_o2_f')
-    N_s = __add_output_property('N_s')
-    x_s = __add_output_property('x_s')
-    p_o2_s = __add_output_property('p_o2_s')
-    N_o2 = __add_output_property('N_o2')
-    dH = __add_output_property('dH')
-    x_comp = __add_output_property('x_comp')
-    conv = __add_output_property('conv')
+    N_f = _add_output_property('N_f')
+    x_f = _add_output_property('x_f')
+    p_o2_f = _add_output_property('p_o2_f')
+    N_s = _add_output_property('N_s')
+    x_s = _add_output_property('x_s')
+    p_o2_s = _add_output_property('p_o2_s')
+    N_o2 = _add_output_property('N_o2')
+    dH = _add_output_property('dH')
+    x_comp = _add_output_property('x_comp')
+    conv = _add_output_property('conv')
     
     def run(self):
         """Run OMR model and record model outputs
@@ -176,42 +178,44 @@ class Experiment:
         None.
 
         """
-        self.__model_output = {}
-        self.__model_output['N_f'], self.__model_output['x_f'], self.__model_output['p_o2_f'], \
-        self.__model_output['N_s'], self.__model_output['x_s'], self.__model_output['p_o2_s'], \
-        self.__model_output['N_o2'], self.__model_output['dH'], \
-        self.__model_output['x_comp'], self.__model_output['conv'] \
+        self._model_output = {}
+        self._model_output['N_f'], self._model_output['x_f'], self._model_output['p_o2_f'], \
+        self._model_output['N_s'], self._model_output['x_s'], self._model_output['p_o2_s'], \
+        self._model_output['N_o2'], self._model_output['dH'], \
+        self._model_output['x_comp'], self._model_output['conv'] \
         = Simulate_OMR(
             self.T,
             self.N_f0, self.x_f0, self.P_f,
             self.N_s0, self.x_s0, self.P_s,
             self.A_mem, self.sigma, self.L, self.Lc)
-        for key in self.__model_output:
+        for key in self._model_output:
             if key != 'x_comp':
-                self.__model_output[key] = self.__model_output[key][0]
+                self._model_output[key] = self._model_output[key][0]
         if self.conv < CONV_THRESHOLD:
             temp_conv = self.conv
-            del self.__model_output
+            del self._model_output
             raise RuntimeError(f'Simulation failed to converge with {temp_conv}')
          
-    def __get_analysis(self, key):
-        if not hasattr(self, "_Experiment__analyzed_output"):
+    def _get_analysis(self, key):
+        try:
+            return self._analyzed_output[key]
+        except AttributeError:
             self.analyze()
-        return self.__analyzed_output[key]
-         
-    def __add_analysis_property(name):
+            return self._analyzed_output[key]
+
+    def _add_analysis_property(name):
         return property(
-            fget = lambda self: self.__get_analysis(name),
+            fget = lambda self: self._get_analysis(name),
             fset = None)
 
-    f_H2_prod = __add_analysis_property('f_H2_prod')
-    s_H2_prod = __add_analysis_property('s_H2_prod')
-    s_CO_prod = __add_analysis_property('s_CO_prod')
-    s_CO2_prod = __add_analysis_property('s_CO2_prod')
-    H2O_conv = __add_analysis_property('H2O_conv')
-    CH4_conv = __add_analysis_property('CH4_conv')
-    CO_sel = __add_analysis_property('CO_sel')
-    O2_conv = __add_analysis_property('O2_conv')
+    f_H2_prod = _add_analysis_property('f_H2_prod')
+    s_H2_prod = _add_analysis_property('s_H2_prod')
+    s_CO_prod = _add_analysis_property('s_CO_prod')
+    s_CO2_prod = _add_analysis_property('s_CO2_prod')
+    H2O_conv = _add_analysis_property('H2O_conv')
+    CH4_conv = _add_analysis_property('CH4_conv')
+    CO_sel = _add_analysis_property('CO_sel')
+    O2_conv = _add_analysis_property('O2_conv')
             
     def analyze(self):
         """Compute analyzed outputs from model outputs
@@ -225,25 +229,25 @@ class Experiment:
         None.
 
         """
-        if not hasattr(self, "_Experiment__model_output"):
+        if not hasattr(self, "_model_output"):
             self.run()
-        self.__analyzed_output = {}
-        self.__analyzed_output['f_H2_prod'] = self.x_f[self.x_comp.index("H2")] * self.N_f
-        self.__analyzed_output['s_H2_prod'] = self.x_s[self.x_comp.index("H2")] * self.N_s
-        self.__analyzed_output['s_CO_prod'] = self.x_s[self.x_comp.index("CO")] * self.N_s
-        self.__analyzed_output['s_CO2_prod'] = self.x_s[self.x_comp.index("CO2")] * self.N_s
+        self._analyzed_output = {}
+        self._analyzed_output['f_H2_prod'] = self.x_f[self.x_comp.index("H2")] * self.N_f
+        self._analyzed_output['s_H2_prod'] = self.x_s[self.x_comp.index("H2")] * self.N_s
+        self._analyzed_output['s_CO_prod'] = self.x_s[self.x_comp.index("CO")] * self.N_s
+        self._analyzed_output['s_CO2_prod'] = self.x_s[self.x_comp.index("CO2")] * self.N_s
         # Using regular expressions to parse x_f0 for the H2O fraction.
         # Two layers of indexing are needed: first to select the first match,
         # then to select the first pattern group 
         # (pattern has two groups to find floats written both with and without a leading 0)
         H2O_in = float(re.findall('H2O:(\d+(\.\d*)?|\.\d+)', self.x_f0)[0][0]) * self.N_f0
         H2O_out = self.x_f[self.x_comp.index("H2O")] * self.N_f
-        self.__analyzed_output['H2O_conv'] = (H2O_in - H2O_out) / H2O_in
+        self._analyzed_output['H2O_conv'] = (H2O_in - H2O_out) / H2O_in
         CH4_in = float(re.findall('CH4:(\d+(\.\d*)?|\.\d+)', self.x_s0)[0][0]) * self.N_s0
         CH4_out = self.x_s[self.x_comp.index("CH4")] * self.N_s
-        self.__analyzed_output['CH4_conv'] = (CH4_in - CH4_out) / CH4_in
-        self.__analyzed_output['CO_sel'] = self.s_CO_prod / (CH4_in * self.CH4_conv)
-        self.__analyzed_output['O2_conv'] = (self.N_o2 - self.x_s[self.x_comp.index("O2")]) / self.N_o2
+        self._analyzed_output['CH4_conv'] = (CH4_in - CH4_out) / CH4_in
+        self._analyzed_output['CO_sel'] = self.s_CO_prod / (CH4_in * self.CH4_conv)
+        self._analyzed_output['O2_conv'] = (self.N_o2 - self.x_s[self.x_comp.index("O2")]) / self.N_o2
             
     def print_analysis(self):
         """Print analyzed outputs
@@ -253,7 +257,7 @@ class Experiment:
         None.
 
         """
-        if not hasattr(self, "_Experiment__analyzed_output"):
+        if not hasattr(self, "_Experiment_analyzed_output"):
             self.analyze()        
         col_template = '{: <20}{: >20}'; #col_sep = ', '
         print(col_template.format('Feed H2 produced:', f'{self.f_H2_prod:.2e} mol/min'))
@@ -267,7 +271,7 @@ class Experiment:
         print(col_template.format('Reaction heat:', f'{self.dH:.2f} W'))
         print(col_template.format('Oxygen flux:', f'{self.N_o2:.2e} mol/min'))
         
-    def __print_stream(self, stream_fractions, stream_flow):
+    def _print_stream(self, stream_fractions, stream_flow):
         x_sort_indices = np.flip(np.argsort(stream_fractions))[0:9]
         col_template = '{: <7}{: >20}{: >10}'
         for idx in x_sort_indices:
@@ -284,7 +288,7 @@ class Experiment:
         None.
 
         """
-        self.__print_stream(self.x_f, self.N_f)
+        self._print_stream(self.x_f, self.N_f)
             
     def print_sweep_output(self):
         """Print the top 10 constituents of the sweep output
@@ -294,7 +298,7 @@ class Experiment:
         None.
 
         """
-        self.__print_stream(self.x_s, self.N_s)
+        self._print_stream(self.x_s, self.N_s)
 
     def grid(**kwargs):
         """Generate meshgrid of Experiments
@@ -415,25 +419,25 @@ class ProfilingExperiment(Experiment):
 
     def run(self):
         from OMR_model_profile import Simulate_OMR as Simulate_OMR_profile
-        self.__model_output = {}
-        self.__model_output['N_f'], self.__model_output['x_f'], self.__model_output['p_o2_f'], \
-        self.__model_output['N_s'], self.__model_output['x_s'], self.__model_output['p_o2_s'], \
-        self.__model_output['N_o2'], self.__model_output['dH'], \
-        self.__model_output['x_comp'], self.__model_output['conv'] \
+        self._model_output = {}
+        self._model_output['N_f'], self._model_output['x_f'], self._model_output['p_o2_f'], \
+        self._model_output['N_s'], self._model_output['x_s'], self._model_output['p_o2_s'], \
+        self._model_output['N_o2'], self._model_output['dH'], \
+        self._model_output['x_comp'], self._model_output['conv'] \
         = Simulate_OMR_profile(
             self.T,
             self.N_f0, self.x_f0, self.P_f,
             self.N_s0, self.x_s0, self.P_s,
             self.A_mem, self.sigma, self.L, self.Lc)
-        for key in self.__model_output:
+        for key in self._model_output:
             if key != 'x_comp':
-                self.__model_output[key] = self.__model_output[key][0]
+                self._model_output[key] = self._model_output[key][0]
         if self.conv < CONV_THRESHOLD:
             temp_conv = self.conv
-            del self.__model_output
+            del self._model_output
             raise RuntimeError(f'Simulation failed to converge with {temp_conv}')
 
 if __name__ == '__main__':
-    e = Experiment()
+    e = LimitExperiment()
     e.run()
-    e.print_analysis()
+    pass
