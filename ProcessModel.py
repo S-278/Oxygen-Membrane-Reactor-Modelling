@@ -195,7 +195,9 @@ class Eff_PM(ProcessModel):
         elec_produced = waste_heat_recovered * self.RANKINE_EFF
         # Calculate total electricity consumption:
         # Input water purification
-        H2O_pur_cons = exp.N_f0 * u.mol/u.min * self.H2O_CYCLE_LOSS * self.H2O_PURIF_CONS 
+        H2O_pur_cons = (exp.N_f0 * u.mol/u.min * 
+                        (exp.H2O_conv + (1-exp.H2O_conv) * self.H2O_CYCLE_LOSS)
+                        ) * self.H2O_PURIF_CONS 
         # Input pumping
         H2Ol_pump_cons = exp.N_f0 * u.mol/u.min * self.H2Ol_spec_grav_energy / self.PUMPING_EFF
         
