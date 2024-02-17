@@ -436,6 +436,29 @@ class ProfilingExperiment(Experiment):
             temp_conv = self.conv
             del self._model_output
             raise RuntimeError(f'Simulation failed to converge with {temp_conv}')
+            
+class LimitExperiment(Experiment):
+    
+    def run(self):
+        from OMR_model_lim import Simulate_OMR as Simulate_OMR_lim
+        self._model_output = {}
+        self._model_output['N_f'], self._model_output['x_f'], self._model_output['p_o2_f'], \
+        self._model_output['N_s'], self._model_output['x_s'], self._model_output['p_o2_s'], \
+        self._model_output['N_o2'], self._model_output['dH'], \
+        self._model_output['x_comp'], self._model_output['conv'] \
+        = Simulate_OMR_lim(
+            self.T,
+            self.N_f0, self.x_f0, self.P_f,
+            self.N_s0, self.x_s0, self.P_s,
+            self.A_mem, self.sigma, self.L, self.Lc)
+        for key in self._model_output:
+            if key != 'x_comp':
+                self._model_output[key] = self._model_output[key][0]
+        if self.conv < CONV_THRESHOLD:
+            temp_conv = self.conv
+            del self._model_output
+            raise RuntimeError(f'Simulation failed to converge with {temp_conv}')
+
 
 if __name__ == '__main__':
     e = LimitExperiment()
