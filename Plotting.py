@@ -513,10 +513,10 @@ def cmap_vs_cond_N(target, init_exp : Experiment,
     if callable(target): target_str = target.__name__
     else: target_str = str(target)
 
-    target_data = None
+    e_grid = None
     if CACHE_PLOTDATA_EN and from_cache:
-        target_data = read_cache(CACHE_FILE)
-    if target_data is None:
+        e_grid = read_cache(CACHE_FILE)
+    if e_grid is None:
         cond_mesh, N_mesh = numpy.meshgrid(cond_vals, N_vals)
         
         def experiment_helper(cond, N):
@@ -526,10 +526,11 @@ def cmap_vs_cond_N(target, init_exp : Experiment,
                               N_f0=N, N_s0=N * N_ratio)
         e_grid = numpy.vectorize(experiment_helper, otypes=[numpy.dtype(numpy.object_)])(cond_mesh, N_mesh)
         
-        target_data = compute_target(e_grid, target)
+    
+    target_data = compute_target(e_grid, target)
         
     if CACHE_PLOTDATA_EN:
-        write_cache(CACHE_FILE, target_data)
+        write_cache(CACHE_FILE, e_grid)
     
     # Debug tool: sets up an array of alternating values 
     # to easily see each pixel on the colormap
