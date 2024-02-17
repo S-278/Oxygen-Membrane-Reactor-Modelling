@@ -107,10 +107,10 @@ class Eff_PM(ProcessModel):
     # ~~~~~~~~~~ PROCESS MODEL PARAMETERS ~~~~~~~~~~
     H2O_CYCLE_LOSS = 0.10
     H2O_PURIF_CONS = 4.52e-5 * u.kWh/u.mol
-    H2O_BOILING_CONS = 76.6 * u.kJ/u.mol
+    H2O_BOILING_CONS = 52.6 * u.kJ/u.mol
     AMBIENT_T = u.Quantity(25, u.degC)
     AMBIENT_P = 101325 * u.Pa
-    HX_EFF = 0.9
+    HX_EFF = 0.8
     REACTOR_HEAT_LOSS = 0.10
     CONDENSER_CW_FLOW_RATIO = 2/1
     CONDENSER_CW_PUMPING_CONS = 0.7e-6 * u.kWh/u.mol
