@@ -291,7 +291,7 @@ class ModelParameter(dict):
     """For now, just an alias for dict"""
     pass
 
-class Scenario_PM(Spec_N_o2_PM):
+class Scenario_PM(Eff_PM):
     """Calculates the process energy efficiency based on model scenarios
     
     This ProcessModel defines multiple model scenarios, 
