@@ -17,6 +17,7 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.ticker import PercentFormatter
 from numpy import ndarray; import numpy
 import os
+import pint; u=pint.UnitRegistry()
 from scipy.optimize import Bounds
 from typing import Tuple, Dict, Callable, List
 from xarray import DataArray
@@ -66,6 +67,18 @@ def write_cache(cache_file : str, obj_to_cache):
         os.mkdir(CACHE_PLOTDATA_DIR)
         with open(CACHE_PLOTDATA_DIR + '\\' + cache_file, mode='w+b') as f:
             pickle.dump(obj_to_cache, f)
+            
+def spec_cond_to_sigma(cond: float, L: float, Lc: float=0) -> float:
+    cond *= u.S / u.cm**2
+    L *= u.um; Lc *= u.um
+    sigma = (cond * (L + Lc)).to(u.S / u.m)
+    return sigma.magnitude
+
+def sigma_to_spec_cond(sigma: float, L: float, Lc: float=0) -> float:
+    sigma *= u.S / u.m
+    L *= u.um; Lc *= u.um
+    cond = (sigma / (L + Lc)).to(u.S / u.cm**2)
+    return cond.magnitude
 
 def compute_target(exp_grid: ndarray, target) -> ndarray:
     """Computes the value of target over an array of Experiments
@@ -510,7 +523,7 @@ def cmap_vs_cond_N(target, init_exp : Experiment,
         def experiment_helper(cond, N):
             return Experiment(A_mem=init_exp.A_mem, L=init_exp.L,
                               T=init_exp.T, P_f=init_exp.P_f, P_s=init_exp.P_s,
-                              sigma=cond * init_exp.A_mem * 1e4 * init_exp.L * 1e-6,
+                              sigma=spec_cond_to_sigma(cond, init_exp.L),
                               N_f0=N, N_s0=N * N_ratio)
         e_grid = numpy.vectorize(experiment_helper, otypes=[numpy.dtype(numpy.object_)])(cond_mesh, N_mesh)
         
@@ -701,7 +714,7 @@ def rxn_perf_vs_cond(exs : ndarray = None, data_dict : Dict[str, List[float]] = 
             'S_CO' : [],
         }
         for e in exs:
-            data_dict['spec_cond'].append(e.sigma / (e.A_mem * 1e4 * e.L * 1e-6))
+            data_dict['spec_cond'].append(sigma_to_spec_cond(e.sigma, e.L))
             data_dict['j_o2'].append(e.N_o2 / e.A_mem)
             if pm is not None: data_dict['eff'].append(pm.get_energy_eff(e))
             data_dict['X_CH4'].append(e.CH4_conv)
