@@ -397,12 +397,11 @@ def tornado(pm : Scenario_PM, e_0 : Experiment, gen_metrics=False, from_cache=Fa
         # Make a vectorized function that can act on an array of parameters
         calculate_eff_vectorized = numpy.vectorize(calculate_eff_per_param, otypes=[None], excluded=[1])
         
-        for scenario in Scenarios:
-            if scenario != Scenarios.CENTRAL:
-                # For each scenario besides central,
-                # pass all model parameters into the vectorized function
-                # to get an array of energy efficiencies 
-                efficiencies_per_scenario[scenario] = calculate_eff_vectorized(list(pm.MODEL_PARAMETERS), scenario)
+        for scenario in [Scenarios.OPTIMISTIC, Scenarios.PESSIMISTIC]:
+            # For the optimistic and pessimistic scenarios,
+            # pass all model parameters into the vectorized function
+            # to get an array of energy efficiencies 
+            efficiencies_per_scenario[scenario] = calculate_eff_vectorized(list(pm.MODEL_PARAMETERS), scenario)
                     
         if csv_f != None: csv_f.close()
         
