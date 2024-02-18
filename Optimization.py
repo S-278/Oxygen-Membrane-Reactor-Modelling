@@ -267,10 +267,7 @@ class Optimizer(ABC):
         OptimizeResult returned by underlying scipy optimizer.
 
         """
-        self.fixed_params = dict(
-            x_f0=init_exp.x_f0, x_s0=init_exp.x_s0,
-            A_mem=init_exp.A_mem, sigma=init_exp.sigma, 
-            L=init_exp.L, Lc=init_exp.Lc)
+        self.fixed_params = extract_opt_fixed(init_exp)
         
         if self.track_progress:
             self.prog_file = open(
