@@ -691,7 +691,7 @@ def rxn_perf_vs_cond(exs : ndarray = None, data_dict : Dict[str, List[float]] = 
     Figure
     """
     
-    if bool(exs) ^ bool(data_dict):
+    if not (bool(exs) ^ bool(data_dict)):
         raise ValueError('Either an Experiment array or a data dict must be provided, but not both.')
         
     if data_dict is None:
