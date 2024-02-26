@@ -270,7 +270,7 @@ class Experiment:
         print(col_template.format('CO selectivity:', f'{self.CO_sel:.0%}'))
         print(col_template.format('Sweep O2 conversion:', f'{self.O2_conv:.0%}'))
         print(col_template.format('Reaction heat:', f'{self.dH:.2f} W'))
-        print(col_template.format('Oxygen flux:', f'{self.N_o2:.2e} mol/min'))
+        print(col_template.format('O2 flux:', f'{self.N_o2:.2e} mol/min'))
         
     def _print_stream(self, stream_fractions, stream_flow):
         x_sort_indices = np.flip(np.argsort(stream_fractions))[0:9]
@@ -477,7 +477,12 @@ class ProfilingExperiment(Experiment):
             raise RuntimeError(f'Simulation failed to converge with {temp_conv}')
             
 class LimitExperiment(Experiment):
+    """Subclass of Experiment using thermodynamic limit
     
+    Uses a version of Simulate_OMR which imposes the thermodynamic limit
+    of membrane conductance.
+    """
+
     def run(self):
         from OMR_model_lim import Simulate_OMR as Simulate_OMR_lim
         self._model_output = {}
