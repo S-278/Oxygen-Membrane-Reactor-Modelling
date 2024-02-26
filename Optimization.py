@@ -15,7 +15,7 @@ from typing import Callable
 from xarray import DataArray
 
 
-XA_COORDS =  [("param", ['T', 'N_f0', 'P_f', 'N_s0', 'P_s'])]
+XA_COORDS =  [("param", ['T', 'N_f0', 'N_s0', 'P_s'])]
 """
 Array coordinate convention used throughout this module.
 All DataArray objects used in with this module should be created
@@ -45,8 +45,8 @@ def extract_opt_x(exp : Experiment) -> DataArray:
     ret = DataArray(coords=XA_COORDS)
     ret.loc[dict(param="T")] = exp.T
     ret.loc[dict(param="N_f0")] = exp.N_f0
-    ret.loc[dict(param="P_f")] = exp.P_f
     ret.loc[dict(param="N_s0")] = exp.N_s0
+    if exp.P_f != exp.P_s: raise ValueError('P_f and P_s not equal')
     ret.loc[dict(param="P_s")] = exp.P_s
     return ret
 
@@ -68,10 +68,10 @@ def set_opt_x(exp : Experiment, xa : DataArray):
     """
     exp.T=xa.sel(param="T").item()
     exp.N_f0=xa.sel(param="N_f0").item() 
-    exp.P_f=xa.sel(param="P_f").item()
     exp.N_s0=xa.sel(param="N_s0").item()
     exp.P_s=xa.sel(param="P_s").item()
-    
+    exp.P_f=exp.P_s
+
 def extract_opt_fixed(exp : Experiment) -> dict:
     """Extract fixed parameters from an Experiment    
 
