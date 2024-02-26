@@ -9,6 +9,7 @@ import copy
 import math
 import numpy as np
 import re
+import pint; u=pint.UnitRegistry()
 
 class Experiment:
     """Object-oriented user interface for Simulate_OMR
@@ -387,6 +388,44 @@ class Experiment:
             ret_arr[arr_point] = Experiment(**init_dict)
             
         return ret_arr
+    
+def spec_cond_to_sigma(cond: float, L: float, Lc: float=0) -> float:
+    """Convert conductance per unit area to conductivity
+    
+    S/cm² -> S/m
+
+    Parameters
+    ----------
+    cond : float
+        In S/cm².
+    L : float
+        In um.
+    Lc : float, optional
+        In um. The default is 0.
+    """
+    cond *= u.S / u.cm**2
+    L *= u.um; Lc *= u.um
+    sigma = (cond * (L + Lc)).to(u.S / u.m)
+    return sigma.magnitude
+
+def sigma_to_spec_cond(sigma: float, L: float, Lc: float=0) -> float:
+    """Convert conductivity to conductance per unit area
+    
+    S/m -> S/cm²
+
+    Parameters
+    ----------
+    sigma : float
+        In S/m.
+    L : float
+        In um.
+    Lc : float, optional
+        In um. The default is 0.
+    """
+    sigma *= u.S / u.m
+    L *= u.um; Lc *= u.um
+    cond = (sigma / (L + Lc)).to(u.S / u.cm**2)
+    return cond.magnitude
     
 class Experiment_T_dep_sigma(Experiment):
     """Subclass of Experiment with a temperature-dependent sigma

@@ -17,7 +17,6 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.ticker import PercentFormatter
 from numpy import ndarray; import numpy
 import os
-import pint; u=pint.UnitRegistry()
 from scipy.optimize import Bounds
 from typing import Tuple, Dict, Callable, List
 from xarray import DataArray
@@ -68,18 +67,6 @@ def write_cache(cache_file : str, obj_to_cache):
         with open(CACHE_PLOTDATA_DIR + '\\' + cache_file, mode='w+b') as f:
             pickle.dump(obj_to_cache, f)
             
-def spec_cond_to_sigma(cond: float, L: float, Lc: float=0) -> float:
-    cond *= u.S / u.cm**2
-    L *= u.um; Lc *= u.um
-    sigma = (cond * (L + Lc)).to(u.S / u.m)
-    return sigma.magnitude
-
-def sigma_to_spec_cond(sigma: float, L: float, Lc: float=0) -> float:
-    sigma *= u.S / u.m
-    L *= u.um; Lc *= u.um
-    cond = (sigma / (L + Lc)).to(u.S / u.cm**2)
-    return cond.magnitude
-
 def compute_target(exp_grid: ndarray, target) -> ndarray:
     """Computes the value of target over an array of Experiments
     If target is a callable, it will be called on each Experiment directly,
