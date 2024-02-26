@@ -17,7 +17,6 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.ticker import PercentFormatter
 from numpy import ndarray; import numpy
 import os
-from scipy.optimize import Bounds
 from typing import Tuple, Dict, Callable, List
 from xarray import DataArray
 
@@ -79,12 +78,13 @@ def compute_target(exp_grid: ndarray, target) -> ndarray:
         vectorized_target_compute = numpy.vectorize(lambda e: getattr(e, target))
     return vectorized_target_compute(exp_grid)
 
+PARAM_COORDS = [("param", ['T', 'N_f0', 'P_f', 'N_s0', 'P_s'])]
 def explore_local(target,
                   origin : DataArray, init_exp: Experiment, 
-                  lookabout_range : Bounds = None, 
+                  lookabout_range : Tuple[DataArray, DataArray] = None, 
                   num_samples: DataArray = DataArray(
                       data=[50, 20, 20, 20, 20],
-                      coords=XA_COORDS),
+                      coords=PARAM_COORDS),
                   plot_T=True, plot_N=True, plot_P=True,
                   from_cache=False) -> List[Figure]:
     """Generate plots of target over the local parameter space around origin
@@ -104,14 +104,13 @@ def explore_local(target,
         an attribute of the Experiment class to be queried,
         or a callable which will be passed an Experiment at every point plotted.
     origin : DataArray
-        Origin of the independent variable space, specified as a DataArray using XA_COORDS.
+        Origin of the independent variable space, specified as a DataArray using PARAM_COORDS.
     init_exp : Experiment
         Experiment containing the fixed Experiment parameters used to 
         compute the target at every point plotted.
-    lookabout_range : Bounds, optional
-        Bounds object where both the upper and lower bounds are DataArrays
-        using XA_COORDS and recording the absolute displacements above and below 
-        the origin, respectively.
+    lookabout_range : Tuple[DataArray, DataArray], optional
+        Tuple of DataArrays using PARAM_COORDS in the order: lower bound, upper bound;
+        recording the absolute displacements below and abovev the origin, respectively.
         Entries in the lower bound must be negative or zero, 
         and entries in the upper bound must be positive or zero.
         The space on which the target will be plotted is then defined for each 
@@ -119,7 +118,7 @@ def explore_local(target,
         If omitted, default values will be used.
     num_samples : DataArray, optional
         Number of samples to generate along each axis of the parameter space.
-        Must use XA_COORDS. If omitted, default values will be used.
+        Must use PARAM_COORDS. If omitted, default values will be used.
     plot_T : bool, optional
         Whether to create the temperature plot. The default is True.
     plot_N : bool, optional
@@ -155,14 +154,14 @@ def explore_local(target,
                       -0.2*101325,
                       -origin.sel(param='N_s0').item() * 0.1,
                       -0.2*101325],
-                coords=XA_COORDS),
+                coords=PARAM_COORDS),
             DataArray(
                 data=[50, 
                       origin.sel(param='N_f0').item() * 0.1,
                       0.2*101325,
                       origin.sel(param='N_s0').item() * 0.1,
                       0.2*101325],
-                coords=XA_COORDS)
+                coords=PARAM_COORDS)
         )
     else:
         for step in lookabout_range[0]:
@@ -176,7 +175,7 @@ def explore_local(target,
                 
     # Create 1D arrays for the values of the independent variables
     indep_var_axes = dict()
-    for param in XA_COORDS[0][1]:
+    for param in PARAM_COORDS[0][1]:
         indep_var_axes[param] =                                                                         \
             numpy.linspace(origin.sel(param=param).item() + lookabout_range[0].sel(param=param).item(), 
                            origin.sel(param=param).item() + lookabout_range[1].sel(param=param).item(),
