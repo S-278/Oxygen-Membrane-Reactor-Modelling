@@ -296,7 +296,7 @@ def explore_local(target,
     # If caching is enabled, overwrite the cache with
     # the data returned by the plotters
     if CACHE_PLOTDATA_EN:
-        write_cache(CACHE_FILE, data_to_plot)
+        write_cache(CACHE_FILE, data_to_cache)
                 
     for fig in figures_to_show: fig.show()
     return figures_to_show
