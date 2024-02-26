@@ -612,12 +612,9 @@ def annotate_axis_arrows(left_ax : Axes, right_ax : Axes,
 
     """
     for var in left_dep_vars:
-        # Find x-coordinate at which to place the arrow 
-        # by converting from Axes coordinates into data coordinates
-        ann_arrow_x_data = (left_ax.transleft_axes - left_ax.transData).transform((left_start, 1))[0]
         # Find the member of indep_var closest to the data coordinate 
         # we are trying to place the arrow at.
-        ann_arrow_x_idx = numpy.argmin(numpy.abs(indep_var - ann_arrow_x_data))
+        ann_arrow_x_idx = round(left_start * (len(indep_var)-1))
         left_ax.annotate('', 
                     (indep_var[ann_arrow_x_idx], var[ann_arrow_x_idx]),
                     xycoords='data',
@@ -628,8 +625,7 @@ def annotate_axis_arrows(left_ax : Axes, right_ax : Axes,
                     )
         left_start += arrow_interval
     for var in right_dep_vars:
-        ann_arrow_x_data = (right_ax.transright_axes - right_ax.transData).transform((right_start, 1))[0]
-        ann_arrow_x_idx = numpy.argmin(numpy.abs(indep_var - ann_arrow_x_data))
+        ann_arrow_x_idx = round(right_start * (len(indep_var)-1))
         right_ax.annotate('', 
                     (indep_var[ann_arrow_x_idx], var[ann_arrow_x_idx]),
                     xycoords='data',
