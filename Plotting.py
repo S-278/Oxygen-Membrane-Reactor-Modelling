@@ -450,9 +450,11 @@ def tornado(pm : Scenario_PM, e_0 : Experiment, gen_metrics=False, from_cache=Fa
     return tornado_fig
 
 def cmap_vs_cond_N(target, init_exp : Experiment, 
-                   N_vals : ndarray, cond_vals : ndarray = DEFAULT_COND_VALS, 
+                   N_vals : ndarray, cond_vals : ndarray = DEFAULT_COND_VALS,
+                   target_str : str = None,
                    N_ratio : float = 1,
                    cond_log=False, N_log=False,
+                   fmt=None,
                    from_cache=False) -> Figure:
     """Plot colormap of target over a grid of specific conductance vs. flowrate
     
@@ -471,6 +473,9 @@ def cmap_vs_cond_N(target, init_exp : Experiment,
     cond_vals : ndarray, optional
         Conductance values to use for the x axis. Should be linearly or geometrically
         spaced according to cond_log. The default is DEFAULT_COND_VALS.
+    target_str : str, optional
+        String label for the target variable. If not supplied, this method will
+        attempt to use a reasonable conversion of target.
     N_ratio : float, optional
         Sweep:feed flowrate ratio. The default is 1.
     cond_log : bool, optional
@@ -479,6 +484,8 @@ def cmap_vs_cond_N(target, init_exp : Experiment,
     N_log : bool, optional
         Whether to use a logarithmic scale for the flowrate on the y axis.
         The default is False.
+    fmt, optional
+        Target value formatter, will be passed directly to call to Figure.colorbar.
     from_cache : bool, optional
         Whether to read in plot data from the cache. The default is False.
         Has no effect if CACHE_PLOTDATA_EN is not True.
@@ -496,9 +503,9 @@ def cmap_vs_cond_N(target, init_exp : Experiment,
     """
     CACHE_FILE = 'cmap_cond_N.cache'
     
-    target_str = 'Target'
-    if callable(target): target_str = target.__name__
-    else: target_str = str(target)
+    if target_str is None:
+        if callable(target): target_str = target.__name__
+        else: target_str = str(target)
 
     e_grid = None
     if CACHE_PLOTDATA_EN and from_cache:
@@ -555,8 +562,8 @@ def cmap_vs_cond_N(target, init_exp : Experiment,
     if N_log: cmap_ax.set_yscale('log')
     cmap_ax.set_xlim((left_x, right_x)); cmap_ax.set_ylim((bottom_y, top_y))
     cmap_im = cmap_ax.pcolormesh(x_corners, y_corners, target_data)
-    cmap_fig.colorbar(cmap_im, ax=cmap_ax, fraction=0.2, label=target_str, format=PercentFormatter(xmax=1))
     cmap_ax.set_xlabel('Specific conductance (S/cm²)'); cmap_ax.set_ylabel('Specific feed flowrate (mol/min/cm²)')
+    cmap_fig.colorbar(cmap_im, ax=cmap_ax, fraction=0.2, label=target_str, format=fmt)
     cmap_ax.yaxis.set_major_formatter('{x:.1e}')
     cmap_fig.show()
     return cmap_fig
