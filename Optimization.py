@@ -317,9 +317,9 @@ class DE_Optimizer(Optimizer):
     def _optimizer_call(self, init_exp: Experiment, bd: Bounds) -> OptimizeResult:                    
         return scipy.optimize.differential_evolution(self._objective_f, bd,
                                                      x0=extract_opt_x(init_exp),
-                                                     maxiter=int(40000/(120*5)-1), 
-                                                     popsize=120, init='sobol',
-                                                     atol=0.003,
+                                                     maxiter=int(40000/(100*4)-1), 
+                                                     popsize=100, init='sobol',
+                                                     atol=0, tol=5e-2,
                                                      mutation=(1,1.4), recombination=0.6,
                                                      callback=self.__optimizer_cb,
                                                      polish=False,
@@ -334,30 +334,54 @@ class DE_Optimizer(Optimizer):
             self.file_writer.writerow(dict_to_write)
 
 if __name__ == "__main__":
-    RUN_ID = ''
+    from experiment import spec_cond_to_sigma
+    from process_model import *
+    import os
+    
+    SPEC_COND = 1.17; N_O2_TRG = 4.4e-4
+    RUN_ID = f'N_o2 10mL {SPEC_COND:.2f}'
     
     e_init = Experiment(T=1500, 
-                        N_f0=4e-4, x_f0="H2O:1", P_f=101325,
-                        N_s0=3e-5, x_s0="CH4:1", P_s=0.1*101325,
-                        A_mem=1, sigma=0.4, L=500
+                        N_f0=2*N_O2_TRG*1, x_f0="H2O:1", P_f=0.5*101325,
+                        N_s0=2*N_O2_TRG*1, x_s0="CH4:1", P_s=0.5*101325,
+                        A_mem=1, L=1, Lc=0, sigma=spec_cond_to_sigma(SPEC_COND, 1)
                         )
-    from ProcessModel import *
-    import os
-    pm = Spec_N_o2_PM()
-    optimizer = DE_Optimizer(pm.eval_experiment, run_id=RUN_ID, track_progress=True)
+    pm = Spec_N_o2_PM(trg=N_O2_TRG)
+    optimizer = DE_Optimizer(pm.eval_experiment, run_id=RUN_ID, track_progress=False)
     m = Metrics()
     lb = DataArray(
-        data=[800, 2e-5, 101325*0.8, 2e-5, 101325*0.1],
+        data=[800, 0.5*pm.N_O2_TRG, 0.5*pm.N_O2_TRG, 101325*0.5],
         coords=XA_COORDS)
     ub = DataArray(
-        data=[1500, 5e-4, 101325*1.2, 5e-4, 101325*1.5],
+        data=[1500, 10*pm.N_O2_TRG, 10*pm.N_O2_TRG, 101325*2],
         coords=XA_COORDS)
     print("+++++++++++++++++ RUN " + RUN_ID + " ++++++++++++++++++")
     print(f'PID: {os.getpid()}')
     print("Starting optimizer...")
     res = optimizer.optimize(e_init, Bounds(lb, ub))
+    print("+++++++++++++++++ RUN " + RUN_ID + " ++++++++++++++++++")
     print(res)
     e_opt = optimizer.create_experiment_at(res.x)
     e_opt.print_analysis()
-    print(f'E eff.: {pm.get_energy_eff(e_opt)}')
+    opt_eff = pm.get_energy_eff(e_opt)
+    print(f'E eff.: {opt_eff}')
+    with open('opt_res_catcher.csv', mode='a', newline='') as f:
+        writer = csv.DictWriter(f, 
+                                ['spec_cond', 'nit', 'nfev', 'T', 'N_f0', 'N_s0', 'P_s', 'eff', 'X_CH4', 'S_CO', 'X_H2O', 'j_o2']
+                                )
+        to_write = {
+            'spec_cond' : SPEC_COND,
+            'nit' : res.nit,
+            'nfev' : res.nfev,
+            'T' : e_opt.T,
+            'N_f0' : e_opt.N_f0,
+            'N_s0' : e_opt.N_s0,
+            'P_s' : e_opt.P_s,
+            'eff' : opt_eff,
+            'X_CH4' : e_opt.CH4_conv,
+            'X_H2O' : e_opt.H2O_conv,
+            'S_CO' : e_opt.CO_sel,
+            'j_o2' : e_opt.N_o2 / e_opt.A_mem,
+        }
+        writer.writerow(to_write)
     print("+++++++++++++++++ DONE ++++++++++++++++++")
