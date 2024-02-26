@@ -4,12 +4,12 @@ Created on Tue Feb  6 13:01:32 2024
 
 @author: elijah.bakaleynik
 """
-from Experiment import ProfilingExperiment
-from Optimization import *
+from experiment import ProfilingExperiment
+from optimization import *
 import cProfile
 import pstats
 from xarray import DataArray
-from ProcessModel import *
+from process_model import *
 import os
 
 PROFILE_ID = ''

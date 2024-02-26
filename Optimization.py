@@ -5,7 +5,7 @@ Created on Mon Feb  5 18:24:38 2024
 @author: elijah.bakaleynik
 """
 
-from Experiment import Experiment
+from experiment import Experiment
 from abc import ABC, abstractmethod
 import csv
 from math import tanh

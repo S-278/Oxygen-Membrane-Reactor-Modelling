@@ -4,9 +4,9 @@ Created on Mon Feb  5 18:25:26 2024
 
 @author: elijah.bakaleynik
 """
-from Experiment import Experiment
-from Optimization import *
-from ProcessModel import *
+from experiment import Experiment
+from optimization import *
+from process_model import *
 import csv
 from enum import Enum; from enum import auto as e_auto
 from math import sqrt

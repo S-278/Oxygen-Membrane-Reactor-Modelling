@@ -4,8 +4,8 @@ Created on Mon Feb  5 18:25:17 2024
 
 @author: elijah.bakaleynik
 """
-from Experiment import Experiment
-from Optimization import symmetric_inner_filter, step_filter
+from experiment import Experiment
+from optimization import symmetric_inner_filter, step_filter
 from abc import ABC, abstractmethod
 import copy
 from enum import Enum; from enum import auto as e_auto
@@ -277,17 +277,23 @@ class Spec_N_o2_PM(Eff_PM):
     except it also demands that an Experiment achieves a minimum 
     membrane oxygen flux per unit membrane area.
     """
+    def __init__(self, *args, trg=4.4e-5, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.N_O2_TRG = trg
     
     def eval_experiment(self, exp: Experiment) -> float:
         return self.get_energy_eff(exp)                              \
                * syngas_ratio_filter(exp.s_H2_prod/exp.s_CO_prod)    \
-               * step_filter(exp.N_o2 / exp.A_mem, 4.4e-5, 0.9e-5)
+               * step_filter(exp.N_o2 / exp.A_mem, self.N_O2_TRG, 0.2*self.N_O2_TRG)
 
 class Scenarios(Enum):
     """Enumerates Process Model scenarios"""
     PESSIMISTIC = e_auto()
     CENTRAL = e_auto()
     OPTIMISTIC = e_auto()
+    NO_RANKINE = e_auto()
+    NO_FT = e_auto()
+    OPEN_WATER = e_auto()
 
 class ModelParameter(dict):
     """For now, just an alias for dict"""
