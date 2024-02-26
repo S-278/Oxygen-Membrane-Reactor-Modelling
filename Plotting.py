@@ -682,7 +682,8 @@ def rxn_perf_vs_cond(exs : ndarray = None, data_dict : Dict[str, List[float]] = 
     data_dict : Dict[str, List[float]], optional
         Data dict in the same format as returned by read_csv.
     pm : Eff_PM, optional
-        If supplied, will be used to evaluate Experiment efficiency.
+        If this method is called with an Experiment array 
+        and a Process Model is supplied, it will be used to evaluate Experiment efficiency.
     cond_log : bool, optional
     prod_log : bool, optional
 
@@ -715,7 +716,10 @@ def rxn_perf_vs_cond(exs : ndarray = None, data_dict : Dict[str, List[float]] = 
     if cond_log: prod_ax.set_xscale('log'); prod_ax.set_xlabel('Specific conductance (S/cm²)')
     percent_ax = prod_ax.twinx()
     vals_on_prod_ax = ['j_o2']
-    vals_on_percent_ax = ['eff', 'X_CH4', 'X_H2O', 'S_CO']
+    vals_on_percent_ax = ['X_CH4', 'X_H2O', 'S_CO']
+    try:
+        if len(data_dict['eff']) > 0: vals_on_percent_ax.append('eff')
+    except KeyError: pass
     indep_var = data_dict['spec_cond']
     for key in vals_on_prod_ax:
         prod_ax.plot(indep_var, data_dict[key], label=key)
