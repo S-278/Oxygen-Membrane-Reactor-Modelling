@@ -8,8 +8,10 @@ from experiment import Experiment
 from optimization import *
 from process_model import *
 import csv
+from cycler import cycler
 from enum import Enum; from enum import auto as e_auto
 from math import sqrt
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
@@ -39,8 +41,7 @@ COLOR_SYNHELION_YLL = '#FFF385'
 COLOR_SYNHELION_YL = '#f9d900'
 COLOR_SYNHELION_GREY = '#AAAAAA'
 COLOR_SYNHELION_ANTHRACITE = '#333333'
-COLOR_CYCLE = ['#EB4322', '#FFF208', '#F08D24', '#FFC90E',
-               '#99D9EA', '#7092BE', '#7F7F7F', '#424242']
+COLOR_CYCLE = matplotlib.rcParams['axes.prop_cycle'].by_key()['color']
 
 DEFAULT_COND_VALS = numpy.geomspace(0.08, 8, num=50)
 """
@@ -198,10 +199,10 @@ def explore_local(target,
         origin_y_idx = numpy.argmin(numpy.abs(Y_flat - origin[1]))
         ax.scatter(X_flat[origin_x_idx], Y_flat[origin_y_idx],
                    Z[origin_x_idx, origin_y_idx],
-                   color='w')
+                   color='k')
         ax.text(X_flat[origin_x_idx], Y_flat[origin_y_idx],
                 Z[origin_x_idx, origin_y_idx],
-                'origin', color='w')
+                'origin', color='k')
         return (fig,ax)
     
     def plot_2d(X, Y, origin : float) -> Tuple[Figure, Axes3D]:
@@ -563,7 +564,7 @@ def cmap_vs_cond_N(target, init_exp : Experiment,
 def annotate_axis_arrows(left_ax : Axes, right_ax : Axes,
                          left_dep_vars : List[ndarray], right_dep_vars : List[ndarray], 
                          indep_var : ndarray,
-                         color='b', arrow_interval=0.1, arrow_len_px=50,
+                         color='k', arrow_interval=0.1, arrow_len_px=50,
                          left_start=0.1, right_start=0.9):
     """Add arrows onto twinx axes to indicate which yaxis each curve uses
     
@@ -583,7 +584,7 @@ def annotate_axis_arrows(left_ax : Axes, right_ax : Axes,
     indep_var : ndarray
         Independent variable axis.
     color, optional
-        color to be passed to the arrow object constructor. The default is 'b'.
+        color to be passed to the arrow object constructor. The default is 'k'.
     arrow_interval : float, optional
         Amount of space to leave between adjacent arrows, in Axes coordinates. 
         The default is 0.1.
