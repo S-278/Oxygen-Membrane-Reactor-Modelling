@@ -394,7 +394,7 @@ font.sans-serif: Calibri, DejaVu Sans, Bitstream Vera Sans, Computer Modern Sans
 
 #axes.unicode_minus: True  # use Unicode for the minus symbol rather than hyphen.  See
                            # https://en.wikipedia.org/wiki/Plus_and_minus_signs#Character_codes
-axes.prop_cycle: cycler('color', ['eb4322', 'fff208', 'f08d24', 'ffc90e', '99d9ea', '7092be', '7f7f7f', '424242'])
+axes.prop_cycle: cycler('color', ['fff208', 'f08d24', '7092be', '7f7f7f', 'eb4322', '99d9ea', 'ffc90e', '424242'])
                   # color cycle for plot lines as list of string color specs:
                   # single letter, long name, or web-style hex
                   # As opposed to all other parameters in this file, the color
