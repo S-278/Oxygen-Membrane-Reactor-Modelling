@@ -428,7 +428,7 @@ def tornado(pm : Scenario_PM, e_0 : Experiment, gen_metrics=False, from_cache=Fa
     tornado_ax.spines['left'].set_position(('data', central_eff))
     tornado_ax.get_xaxis().set_ticks_position('top')
     tornado_ax.get_yaxis().set_ticks_position('left')
-    tornado_ax.set_xlabel('Process Efficiency', labelpad=8)
+    tornado_ax.set_xlabel('Prozesswirkungsgrad', labelpad=8)
     tornado_ax.xaxis.set_label_position('top')
     lowest_eff = numpy.amin(efficiencies_per_scenario[Scenarios.PESSIMISTIC])
     low_x_lim = central_eff - 1.1 * (central_eff - lowest_eff)
@@ -449,6 +449,7 @@ def tornado(pm : Scenario_PM, e_0 : Experiment, gen_metrics=False, from_cache=Fa
     plt.show()
     return tornado_fig
 
+#@matplotlib.rc_context({'figure.figsize' : (6.4*.5, 4.8*.5)})
 def cmap_vs_cond_N(target, init_exp : Experiment, 
                    N_vals : ndarray, cond_vals : ndarray = DEFAULT_COND_VALS,
                    target_str : str = None,
@@ -561,9 +562,9 @@ def cmap_vs_cond_N(target, init_exp : Experiment,
     if cond_log: cmap_ax.set_xscale('log')
     if N_log: cmap_ax.set_yscale('log')
     cmap_ax.set_xlim((left_x, right_x)); cmap_ax.set_ylim((bottom_y, top_y))
-    cmap_im = cmap_ax.pcolormesh(x_corners, y_corners, target_data)
-    cmap_ax.set_xlabel('Specific conductance (S/cm²)'); cmap_ax.set_ylabel('Specific feed flowrate (mol/min/cm²)')
+    cmap_im = cmap_ax.pcolormesh(x_corners, y_corners, target_data, norm='log')
     cmap_fig.colorbar(cmap_im, ax=cmap_ax, fraction=0.2, label=target_str, format=fmt)
+    #cmap_ax.set_xlabel('Spez. Leitwert (S/cm²)'); cmap_ax.set_ylabel('Spez. Durchfluss Feed (mol/min/cm²)', loc='top')
     cmap_ax.yaxis.set_major_formatter('{x:.1e}')
     cmap_fig.show()
     return cmap_fig
@@ -712,27 +713,41 @@ def rxn_perf_vs_cond(exs : ndarray = None, data_dict : Dict[str, List[float]] = 
             data_dict['X_H2O'].append(e.H2O_conv)
             data_dict['S_CO'].append(e.CO_sel)
 
-    perf_fig, prod_ax = plt.subplots()
-    if cond_log: prod_ax.set_xscale('log'); prod_ax.set_xlabel('Specific conductance (S/cm²)')
-    percent_ax = prod_ax.twinx()
+    lbls = {
+        'spec_cond' : 'Gsp',
+        'j_o2' : 'J(O₂)',
+        'eff' : 'WG',
+        'X_CH4' : 'X(CH₄)',
+        'X_H2O' : 'X(H₂O)',
+        'S_CO' : 'S(CO)',
+    }
+    perf_fig, percent_ax = plt.subplots(figsize=(6.4, 4.8*1.5))
+    if cond_log: percent_ax.set_xscale('log'); 
+    percent_ax.set_xlabel('Spez. Leitwert (S/cm²)')
+    prod_ax = percent_ax.twinx()
     vals_on_prod_ax = ['j_o2']
     vals_on_percent_ax = ['X_CH4', 'X_H2O', 'S_CO']
     try:
         if len(data_dict['eff']) > 0: vals_on_percent_ax.append('eff')
     except KeyError: pass
     indep_var = data_dict['spec_cond']
+    prod_ax.set_prop_cycle(cycler(color=COLOR_CYCLE[4:]))
     for key in vals_on_prod_ax:
-        prod_ax.plot(indep_var, data_dict[key], label=key)
+        prod_ax.plot(indep_var, data_dict[key], label=lbls[key])
+    percent_ax.set_prop_cycle(cycler(color=COLOR_CYCLE[:4]))
     for key in vals_on_percent_ax:
-        percent_ax.plot(indep_var, data_dict[key], label=key)
-        
-    annotate_axis_arrows(prod_ax, percent_ax,
-                         [data_dict[key] for key in vals_on_prod_ax], 
+        percent_ax.plot(indep_var, data_dict[key], label=lbls[key])
+
+    annotate_axis_arrows(percent_ax, prod_ax,
                          [data_dict[key] for key in vals_on_percent_ax],
-                         indep_var)
+                         [data_dict[key] for key in vals_on_prod_ax], 
+                         indep_var,
+                         # 10 mL
+                         right_start=0.7)
     
-    if prod_log: prod_ax.set_yscale('log'); prod_ax.set_ylabel('Specific flow rate (mol/min/cm²)')
-    prod_ax.yaxis.set_major_formatter('{y:.1e}')
+    if prod_log: prod_ax.set_yscale('log'); 
+    prod_ax.set_ylabel('Spez. Durchfluss (mol min⁻¹ cm⁻²)')
+    prod_ax.yaxis.set_major_formatter('{x:.1e}')
     prod_ax.legend(loc='lower right', framealpha=0.9)
 
     percent_ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
@@ -745,32 +760,31 @@ def rxn_perf_vs_cond(exs : ndarray = None, data_dict : Dict[str, List[float]] = 
 def opt_progress(data_dict : Dict[str, List[float]]) -> Figure:
     """Plot optimization progress"""
 
-    opt_prog_fig, (T_ax, N_ax, nit_ax) = plt.subplots(nrows=3, ncols=1, sharex=True, figsize=(4.8, 9.6))
-    P_ax = T_ax.twinx(); nfev_ax = nit_ax.twinx()
+    opt_prog_fig, (P_ax, N_ax, nfev_ax) = plt.subplots(nrows=3, ncols=1, sharex=True, figsize=(4.8*2/3, 9.6*2/3))
+    T_ax = P_ax.twinx();
     indep_var = data_dict['spec_cond']
-    nit_ax.set_xlabel('Specific conductance (S/cm²)')
-    nit_ax.set_xscale('log')
+    nfev_ax.set_xlabel('Spez. Leitwert (S/cm²)')
+    nfev_ax.set_xscale('log')
 
     T_ax.plot(indep_var, data_dict['T'], label='T')
-    for key in ['P_f', 'P_s']:
-        P_ax.plot(indep_var, data_dict[key], label=key)
-    annotate_axis_arrows(T_ax, P_ax,
+    data_dict['P_s'] = numpy.array(data_dict['P_s']) / 101325
+    P_ax.set_prop_cycle(cycler(color=COLOR_CYCLE[4:]))
+    P_ax.plot(indep_var, data_dict['P_s'], label='P_s')
+    annotate_axis_arrows(P_ax, T_ax,
+                         [data_dict['P_s']],
                          [data_dict['T']], 
-                         [data_dict[key] for key in ['P_f', 'P_s']],
-                         indep_var)
-    T_ax.set_ylabel('Temperature (°C)')
-    P_ax.set_ylabel('Pressure (Pa)'); P_ax.yaxis.set_major_formatter('{x:.1e}')
-    P_ax.legend(loc='upper center')
+                         indep_var,
+                         left_start=0.4, right_start=0.7)
+    T_ax.set_ylabel('Temperatur (°C)')
+    P_ax.set_ylabel('Druck (atm)'); P_ax.yaxis.set_major_formatter('{x:.2f}')
  
-    N_ax.plot(indep_var, data_dict['N_f'], label='N_f')
-    N_ax.plot(indep_var, data_dict['N_s'], label='N_s')
-    N_ax.set_ylabel('Specific flowrate (mol min⁻¹S⁻¹)'); N_ax.yaxis.set_major_formatter('{x:.0e}')
+    N_ax.plot(indep_var, data_dict['B_f'], label='B_f')
+    N_ax.plot(indep_var, data_dict['B_s'], label='B_s')
+    N_ax.set_ylabel('Durchfluss (mol min⁻¹ S⁻¹)'); N_ax.yaxis.set_major_formatter('{x:.0e}')
     N_ax.legend(loc='upper center')
 
-    nit_ax.plot(indep_var, data_dict['nit'], label='nit')
-    nfev_ax.plot(indep_var, data_dict['nit'], label='nit')
-    nit_ax.set_ylabel('# iterations')
-    nfev_ax.set_ylabel('# function evaluations'); nfev_ax.yaxis.set_major_formatter('{x:.1e}');# nfev_ax.set_ylim(top=3.5e4)
+    nfev_ax.plot(indep_var, data_dict['nfev'], label='# Ev.')
+    nfev_ax.set_ylabel('# Funktionseval.'); nfev_ax.yaxis.set_major_formatter('{x:.0e}');# nfev_ax.set_ylim(top=3.5e4)
     
     opt_prog_fig.show()
     return opt_prog_fig
