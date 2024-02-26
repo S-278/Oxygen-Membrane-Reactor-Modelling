@@ -22,7 +22,7 @@ All DataArray objects used in with this module should be created
 with coords=XA_COORDS.
 """
 
-PROGRESS_TRACKING_DIR = 'progress_tracking\\'
+PROGRESS_TRACKING_DIR = 'progress_tracking'
 """
 Directory used for saving optimizer progress
 """
@@ -270,9 +270,15 @@ class Optimizer(ABC):
         self.fixed_params = extract_opt_fixed(init_exp)
         
         if self.track_progress:
-            self.prog_file = open(
-                PROGRESS_TRACKING_DIR + self.run_id + '_progress.csv', 
-                'w+', newline='')
+            try:
+                self.prog_file = open(
+                    PROGRESS_TRACKING_DIR + '\\' + self.run_id + '_progress.csv', 
+                    'w+', newline='')
+            except FileNotFoundError:
+                os.mkdir(PROGRESS_TRACKING_DIR)
+                self.prog_file = open(
+                    PROGRESS_TRACKING_DIR + '\\' + self.run_id + '_progress.csv', 
+                    'w+', newline='')
             self.file_writer = csv.DictWriter(self.prog_file, 
                                               XA_COORDS[0][1] + ['eval'])
             self.file_writer.writeheader()

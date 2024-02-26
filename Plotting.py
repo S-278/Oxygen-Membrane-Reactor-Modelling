@@ -375,7 +375,11 @@ def tornado(pm : Scenario_PM, e_0 : Experiment, gen_metrics=False, from_cache=Fa
         
         csv_f = None; file_writer = None
         if gen_metrics: 
-            csv_f = open(PLOT_ANALYSIS_DIR + '\\' + METRICS_FILE, 'w+', newline='')
+            try:
+                csv_f = open(PLOT_ANALYSIS_DIR + '\\' + METRICS_FILE, 'w+', newline='')
+            except FileNotFoundError:
+                os.mkdir(PLOT_ANALYSIS_DIR)
+                csv_f = open(PLOT_ANALYSIS_DIR + '\\' + METRICS_FILE, 'w+', newline='')
             file_writer = csv.DictWriter(csv_f, fieldnames = ['Param', 'Scenario'] + list(central_metrics))
             file_writer.writeheader()
             to_write = {'Param' : None, 'Scenario' : Scenarios.CENTRAL}; to_write.update(central_metrics)
