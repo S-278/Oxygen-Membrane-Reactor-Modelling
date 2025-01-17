@@ -1,4 +1,4 @@
-Prequisites
+Prerequisites
 --
 - Numpy
 - SciPy
