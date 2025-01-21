@@ -44,25 +44,31 @@ class Experiment{
   +analyze() None
   +grid(dict)$ 
 }
+style Experiment fill:#004d80
 note for Experiment "Holds everything related \nto a single run of the \nOMR model in one object"
 Experiment <|-- Experiment_T_dep_sigma
+style Experiment_T_dep_sigma fill:#004d80
 note for Experiment_T_dep_sigma "Like Experiment except \nsigma is temperature-dependent"
 
 class ProcessModel {
   <<Abstract>>
   +eval_experiment(Experiment)* float
 }
+style ProcessModel fill:#0099ff
 note for Process Model "Gives a scalar score for an Experiment"
 ProcessModel ..> Experiment
 class Eff_PM {
   +get_energy_eff(Experiment) float
   +eval_experiment(Experiment) float
 }
+style Eff_PM fill:#0099ff
 ProcessModel ..|> Eff_PM
 note for Eff_PM "The actual plant process model - \nevaluates energy efficiency \nof an Experiment under a \n'bandpass filter' of 2:1 syngas ratio"
 Eff_PM <|-- Spec_N_o2_PM
+style Spec_N_o2_PM fill:#0099ff
 note for Spec_N_o2_PM "Like Eff_PM but adds \nthe constraint of a \nminimum membrane \noxygen flux"
 Eff_PM <|-- Scenario_PM
+style Scenario_PM fill:#0099ff
 note for Scenario_PM "Like Eff_PM but \nmodel params have \npessimistic, central, \nand optimistic values"
 
 class Optimizer{
@@ -70,11 +76,14 @@ class Optimizer{
   +__init__(Callable eval_funct) Optimizer
   +optimize(Experiment init_exp, Bounds bd) OptimizeResult
 }
+style Optimizer fill:#4db8ff
 note for Optimizer "Optimizes the subset of Experiment \nparameters given by XA_COORDS \nto maximize a given \nevaluation function"
 Optimizer ..> ProcessModel
 Optimizer ..> Experiment
 Optimizer ..|> DIRECT_Optimizer
+style DIRECT_Optimizer fill:#4db8ff
 Optimizer ..|> DE_Optimizer
+style DE_Optimizer fill:#4db8ff
 DIRECT_Optimizer ..> scipy.optimize
 DE_Optimizer ..> scipy.optimize
 ```
