@@ -305,7 +305,7 @@ class Scenario_PM(Eff_PM):
     This ProcessModel defines multiple model scenarios, 
     where each scenario has its own set of process model parameters.
     The experiment evaluation then uses the selected scenario
-    along with the syngas ratio and target oxygen flux requirements.
+    along with the syngas ratio requirement.
     
     Public methods and attributes:
         MODEL_PARAMETERS -- dictionary mapping the parameter name to the 
