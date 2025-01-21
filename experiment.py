@@ -502,9 +502,3 @@ class LimitExperiment(Experiment):
             temp_conv = self.conv
             del self._model_output
             raise RuntimeError(f'Simulation failed to converge with {temp_conv}')
-
-
-if __name__ == '__main__':
-    e = LimitExperiment()
-    e.run()
-    pass

@@ -792,7 +792,3 @@ def opt_progress(data_dict : Dict[str, List[float]]) -> Figure:
     
     opt_prog_fig.show()
     return opt_prog_fig
-
-if __name__ == '__main__':
-    init_exp = Experiment(A_mem=1, sigma=0.4, L=500)
-    tornado(Scenario_PM(), init_exp, from_cache=True)

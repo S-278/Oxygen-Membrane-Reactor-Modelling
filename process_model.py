@@ -373,9 +373,3 @@ class Scenario_PM(Eff_PM):
     
     def __init__(self, scenario_def: dict = dict()):
         self.scenario_def = scenario_def     
-        
-    
-
-
-        
-    
